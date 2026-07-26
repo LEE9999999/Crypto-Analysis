@@ -1,0 +1,281 @@
+{
+  "version": "1.0.0",
+  "description": "影响力层级定义 — KOL四级、机构/VC五级、做市商三级。用于D1基本面(investor_tier)、D3流量热度(kol_impact)、D5叙事力(binding_strength)、D6资金力(market_maker_tier)的评分参照。回答疑问3。",
+
+  "kol_tiers": {
+    "description": "KOL影响力分级 — 按行业影响力和粉丝量综合判定",
+
+    "T0_industry_leader": {
+      "label": "T0 行业领袖",
+      "description": "能以一条推文移动市场的行业核心人物",
+      "criteria": "行业定义者级别，其言论直接影响项目叙事走向和市场情绪",
+      "examples": [
+        "Vitalik Buterin (以太坊创始人, 定义L1/智能合约叙事)",
+        "CZ (币安创始人, 上线/评论直接影响价格)",
+        "Balaji Srinivasan (前a16z, 定义网络国家/主权叙事)",
+        "Arthur Hayes (BitMEX创始人, 宏观叙事影响力)",
+        "SBF (注:已 disgrace, 但历史上影响力极大 — 作为反面案例参考)",
+        "Anatoly Yakovenko (Solana创始人, 定义高TPS叙事)",
+        "Stani Kulechov (Aave创始人, DeFi叙事领袖)"
+      ],
+      "scoring_impact": "T0 KOL提及/背书 → D5叙事力 binding_strength 直接+2分; D3流量热度 kol_impact 顶级",
+      "note": "T0级Crypto原生领袖的提及是叙事力强信号，但也需判断是正面提及还是批评"
+    },
+
+    "T0b_web2_bridge": {
+      "label": "T0 Web2跨界领袖",
+      "description": "Web2世界的顶级人物，其言论能将Web3叙事带入主流视野。提及即出圈信号，影响力和辐射范围远超Crypto原生KOL",
+      "criteria": "在Web2世界有重大成就且与Web3有深度交叉，其公开言论直接影响市场情绪和叙事走向",
+      "examples": [
+        "Elon Musk (特斯拉/SpaceX/X拥有者) — 一条推文可移动DOGE/BTC市场, 定义'企业持有BTC'叙事, 收购X后影响社交媒体与Crypto交叉",
+        "Michael Saylor (微策略MicroStrategy CEO) — 最大企业BTC持有者(25万+BTC), 推动企业级BTC配置叙事, 每次加仓都影响市场情绪",
+        "Larry Fink (贝莱德BlackRock CEO) — 推动BTC/ETH现货ETF(IBIT/ETHA), 桥接传统金融与Crypto的关键人物, 管理资产$10T+",
+        "Jack Dorsey (Block/Square创始人) — BTC支付叙事(TBD/Spiriral), 去中心化身份推动者",
+        "Mark Cuban (达拉斯独行侠队老板/投资人) — Crypto投资人, 公开支持Web3, 影响主流市场认知",
+        "Cathie Wood (ARK Invest CEO) — 公开看好BTC/Web3, ARK系列ETF影响机构配置叙事",
+        "Brian Armstrong (Coinbase CEO) — 虽为Crypto原生, 但其在美国监管层面的影响力桥接了Web2/Web3",
+        "Rishi Sunak (注:前英国首相) — 推动英国Crypto友好政策, 代表Web2政策层面桥接者"
+      ],
+      "scoring_impact": "Web2跨界领袖正面提及 → D5叙事力 binding_strength +2.5分(高于Crypto原生T0的+2); D5 web2_propagation 满分; 叙事出圈(Mainstream Adoption)的关键转折信号",
+      "note": "Web2领袖提及通常意味着叙事已出圈到主流市场。这是叙事生命周期从'Crypto Native'到'Mainstream Adoption'的转折点，比Crypto原生KOL讨论的信号更强。但需注意：提及≠背书，需判断是正面、中性还是负面。例如Musk提到DOGE是正面信号，但Fink谈ETF更多是中性机构化信号。"
+    },
+
+    "T1_top_kol": {
+      "label": "T1 头部KOL",
+      "description": "粉丝10万+，行业公认的头部分析师/交易员/项目方",
+      "criteria": "长期活跃、有持续高质量输出、在加密社区有广泛影响力",
+      "examples": [
+        "Cobie (Jordan Fish, @cobie) — 顶级加密分析师, Echo/Revelo创始人",
+        "Pentoshi (@Pentosh1) — 知名交易员, 行业公认趋势判断者",
+        "Ansem (@blknoiz03) — Solana生态顶级交易员KOL, 影响Solana memecoin/DePIN叙事, 粉丝50万+",
+        "CryptoKaleo (@CryptoKaleo) — 知名KOL, 趋势分析",
+        "Hsaka (@HsakaTrades) — 衍生品交易员",
+        "Light (@LightCrypto) — 知名交易员",
+        "ByzGeneral (@ByzGeneral) — DeFi领域KOL",
+        "0xMaki (@0xMaki) — DeFi领域KOL",
+        "中文区: Dov (@DovXBT) — 中文区头部Crypto分析师, 交易信号影响力强",
+        "中文区: Phyrex (@Phyrex_NI) — 宏观与链上数据分析KOL, 深度研究派, 机构视角",
+        "中文区: QinbaFrank (@qinbafrank) — 中文区知名KOL, 覆盖DeFi和L2生态",
+        "中文区: DayuBTC (@dayuBTC) — BTC资深研究者, 周期与宏观分析",
+        "中文区: 蓝狐笔记 (@lanhuazi) — DeFi领域深度研究者",
+        "中文区: 空投猎人 (@airdrop_cn) — 空投生态KOL"
+      ],
+      "scoring_impact": "T1 KOL正面讨论 → D5叙事力 binding_strength +1分; D3流量热度 kol_impact 高",
+      "note": "T1 KOL的集体讨论是叙事热度的重要信号"
+    },
+
+    "T2_mid_kol": {
+      "label": "T2 中腰部KOL",
+      "description": "粉丝1-10万，有专业领域深度但影响力限于垂直社区",
+      "criteria": "在特定赛道(DeFi/NFT/GameFi/AI等)有专业影响力",
+      "examples": [
+        "赛道垂直分析师",
+        "DeFi收益率策略KOL",
+        "NFT社区领袖",
+        "AI+Crypto交叉领域KOL",
+        "中文区各赛道垂直媒体主理人"
+      ],
+      "scoring_impact": "T2 KOL讨论 → D3流量热度 kol_impact 中等; 对D5叙事力有一定加分",
+      "note": "T2 KOL数量多但个体影响力有限，看集体讨论密度"
+    },
+
+    "T3_micro_influencer": {
+      "label": "T3 社区影响者",
+      "description": "粉丝1000-1万，社区活跃分子/空投猎人/小圈子KOL",
+      "criteria": "在特定项目社区有一定影响力，但行业认知度低",
+      "scoring_impact": "T3 KOL讨论 → D3流量热度 kol_impact 低; 对D5叙事力影响有限",
+      "note": "大量T3 KOL突然涌现可能是coordinated shilling信号"
+    },
+
+    "kol_tier_assessment_method": {
+      "description": "如何判定KOL层级",
+      "method": "通过WebSearch搜索到的推文，检查发布者的粉丝量和行业认知度",
+      "quick_check": [
+        "Web2世界有重大成就 + 公开讨论Web3/Crypto → T0b Web2跨界领袖",
+        "Crypto行业定义者级别 + 粉丝>50万 + 言论直接影响价格 → T0 Crypto原生领袖",
+        "Crypto行业公认 + 粉丝10万+ + 持续高质量输出 → T1 头部KOL",
+        "粉丝1-10万 + 赛道专业 → T2",
+        "粉丝<1万 + 社区活跃 → T3"
+      ],
+      "caution": "粉丝量不是唯一标准。买粉账号、营销账号即使粉丝高也降级处理。需结合互动率(engagement_rate)判断真实性。",
+      "bot_detection": "如果大量T3级新账号(注册<6个月)同时讨论一个项目 → 可能是paid shilling, D2安全性 social_score 扣分"
+    }
+  },
+
+  "vc_institution_tiers": {
+    "description": "投资机构/VC层级定义 — 用于D1基本面(investor_tier)和D6资金力(investor_tier, pre-Tge)评分",
+
+    "Tier1": {
+      "label": "Tier1 顶级VC",
+      "description": "行业顶级风投，其投资本身就是强信号",
+      "vc_list": [
+        "a16z (Andreessen Horowitz) — 加密投资最大VC",
+        "Paradigm — 顶级加密原生VC",
+        "Sequoia Capital (红杉) — 传统顶级VC跨界加密",
+        "Polychain Capital — 加密原生顶级VC",
+        "Founders Fund (Peter Thiel) — 顶级跨界VC",
+        "Bain Capital Ventures — 传统顶级VC",
+        "Tiger Global — 传统顶级VC(注:近年在加密领域活跃度下降)",
+        "Lightspeed Venture Partners"
+      ],
+      "scoring_impact": "Tier1 VC领投 → D1基本面 investor_tier 顶级(9-10分区间); D6资金力(pre-TGE) 顶级融资(9-10分)",
+      "note": "Tier1 VC的尽调能力本身是对安全性的背书，但不是绝对的(如FTX案例)"
+    },
+
+    "Tier2": {
+      "label": "Tier2 知名VC",
+      "description": "行业知名风投/交易所战投，有品牌但非顶级",
+      "vc_list": [
+        "Coinbase Ventures — 交易所战投",
+        "Binance Labs — 交易所战投",
+        "Jump Crypto — 做市商/投资",
+        "Wintermute Ventures — 做市商/投资",
+        "OKX Ventures — 交易所战投",
+        "Bybit Web3 Fund — 交易所战投",
+        "Animoca Brands — GameFi/Web3领域头部",
+        "Delphi Digital — 加密原生研究+投资",
+        "Pantera Capital — 老牌加密VC",
+        "Digital Currency Group (DCG) — 加密集团",
+        "Galaxy Digital — 金融服务+投资",
+        "Variant Fund — 加密原生VC"
+      ],
+      "scoring_impact": "Tier2 VC领投或多家Tier2跟投 → D1基本面 investor_tier 优秀(7-8分); D6资金力(pre-TGE) 优质融资(7-8分)"
+    },
+
+    "Tier3": {
+      "label": "Tier3 加密原生基金",
+      "description": "加密原生基金，在特定赛道有影响力但行业整体认知度中等",
+      "vc_list": [
+        "Robot Ventures",
+        "Hack VC",
+        "Robot Capital",
+        "Spartan Group (亚洲加密基金)",
+        "Hashed (韩国加密基金)",
+        "IOSG Ventures",
+        "HashKey Capital",
+        "FBG Capital",
+        "Bitscale Capital",
+        "SevenX Ventures (七曜投资)",
+        "IOSG,HashKey, 数蓝等中文加密基金"
+      ],
+      "scoring_impact": "Tier3 VC投资 → D1基本面 investor_tier 中等(5-6分); D6资金力(pre-TGE) 中等融资(5-6分)"
+    },
+
+    "Tier4": {
+      "label": "Tier4 天使/小型基金",
+      "description": "天使投资人或小型基金，可验证但影响力有限",
+      "vc_list": [
+        "知名天使投资人(如有成功退出记录)",
+        "小型加密基金(<$50M AUM)",
+        "DAO社区基金"
+      ],
+      "scoring_impact": "Tier4 → D1基本面 investor_tier 较弱(3-4分); D6资金力(pre-TGE) 弱融资(3-4分)"
+    },
+
+    "Tier5": {
+      "label": "Tier5 未验证/不明",
+      "description": "投资方信息不透明或无法验证",
+      "vc_list": ["匿名投资方", "信息不可查的投资方", "自投(项目方自己投自己)"],
+      "scoring_impact": "Tier5 → D1基本面 investor_tier 极弱(1-2分); D6资金力(pre-TGE) 无融资(1-2分)",
+      "red_flag": "如果声称有融资但投资方不可验证 → D2安全性 risk_flags 添加'融资信息不可验证'"
+    },
+
+    "vc_tier_assessment_method": {
+      "description": "如何判定VC层级",
+      "method": "从RootData/项目官网/融资新闻获取投资方列表，逐一对照层级定义",
+      "quick_check": [
+        "搜索投资方名称 + 'portfolio' 或 'about' 确认其定位",
+        "检查投资方是否有知名成功案例",
+        "检查投资方AUM(管理资产规模)——$1B+ 通常为Tier1/2",
+        "如果投资方不在任何已知列表中 → 默认Tier4，进一步调查后调整"
+      ],
+      "aggregate_scoring": "多家Tier2跟投 ≈ 1家Tier1领投; 1家Tier1领投+多家Tier2跟投 = 顶级阵容"
+    }
+  },
+
+  "market_maker_tiers": {
+    "description": "做市商层级定义 — 用于D6资金力(market_maker_tier)评分。回答疑问6。",
+
+    "MM_Tier1": {
+      "label": "Tier1 顶级做市商",
+      "description": "行业公认顶级做市商，流动性深度和稳定性最强",
+      "mm_list": [
+        "Wintermute — 加密最大做市商之一",
+        "GSR — 顶级做市商",
+        "Jump Trading / Jump Crypto — 传统量化巨头跨界",
+        "Flow Traders — 欧洲上市做市商",
+        "Cumberland (DRW) — 传统金融做市商",
+        "Jane Street — 传统顶级做市商(部分加密业务)",
+        "B2C2 — 机构级OTC+做市"
+      ],
+      "scoring_impact": "Tier1做市商 → D6资金力 market_maker_tier 强(做市商部分满分); 也间接提升D2安全性background_score",
+      "detection": "通常在交易所上线公告、RootData项目页或做市商官网portfolio中可查"
+    },
+
+    "MM_Tier2": {
+      "label": "Tier2 知名做市商",
+      "description": "知名做市商，有一定市场份额但非顶级",
+      "mm_list": [
+        "DWF Labs — 活跃做市商(注:有争议，需标注)",
+        "Wintermute (有时按Tier1有时按Tier2看具体项目)",
+        "Galaxy Digital — 金融服务+做市",
+        "Amber Group — 亚洲做市商",
+        "FalconX — 机构经纪+做市",
+        "Auros Global",
+        "Binance (自家做市, 仅在Binance交易对)"
+      ],
+      "scoring_impact": "Tier2做市商 → D6资金力 market_maker_tier 良好",
+      "note": "DWF Labs有市场操纵争议(CoinDesk报道), 如果发现项目方使用DWF需在报告中标注风险提示"
+    },
+
+    "MM_Tier3": {
+      "label": "Tier3 小型/未验证做市商",
+      "description": "小型做市商或无法确认是否有专业做市支持",
+      "mm_list": ["小型做市商", "项目方自做市(自有资金提供流动性)", "无做市商"],
+      "scoring_impact": "Tier3 → D6资金力 market_maker_tier 弱; 无做市商通常意味着流动性风险",
+      "detection": "如果搜索不到做市商信息，检查DEX流动性池深度——深度极浅可能意味着无专业做市"
+    },
+
+    "mm_detection_method": {
+      "description": "AI如何找到做市商数据 — 回答疑问6的实操方法",
+      "steps": [
+        {
+          "step": 1,
+          "method": "WebSearch 搜索项目+做市商关键词",
+          "queries": [
+            "\"{project_name}\" market maker OR 做市商 OR liquidity provider",
+            "\"{project_name}\" Wintermute OR GSR OR \"DWF Labs\" OR \"Flow Traders\" OR Cumberland",
+            "\"{project_name}\" OR \"${ticker}\" listing market maker"
+          ],
+          "expected": "找到做市商公告或新闻报道"
+        },
+        {
+          "step": 2,
+          "method": "检查RootData项目详情页",
+          "url": "https://www.rootdata.com/Projects/detail/{id}",
+          "expected": "有时在项目详情中列出做市商"
+        },
+        {
+          "step": 3,
+          "method": "检查交易所上线公告",
+          "sources": ["Binance announcement", "OKX announcement", "Bybit announcement"],
+          "expected": "上线公告有时提及做市商或流动性提供者"
+        },
+        {
+          "step": 4,
+          "method": "链上LP地址分析",
+          "action": "检查DEX流动性池的大额LP提供者地址，与已知做市商地址库比对",
+          "tools": ["Arkham Intelligence (地址标签)", "Etherscan (LP事件日志)"],
+          "expected": "如果大额LP地址标记为Wintermute/GSR等，则确认做市商身份"
+        },
+        {
+          "step": 5,
+          "method": "推断法(最后手段)",
+          "logic": "如果以上方法都无法确认，通过以下信号推断: 交易对价差极窄(<0.1%) → 有专业做市; 价差宽 → 可能无专业做市; 深度图均匀 → 有做市; 深度图断层 → 无做市",
+          "confidence": "推断法置信度低(❓单一来源)，仅作为参考"
+        }
+      ],
+      "fallback": "如果所有方法都无法确认做市商 → D6资金力 market_maker_tier 标注'🚫 无法确认'，保守评分(≤5)"
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "_comment": "Crypto项目评估插件 — MCP Server 配置模板。将此内容合并到 ~/.workbuddy/mcp.json 的 mcpServers 字段中，替换所有 YOUR_*_KEY 占位符为真实API Key，然后在WorkBuddy连接器管理页面点击「信任」启用每个Server。",
+
+  "mcpServers": {
+
+    "cmc-mcp": {
+      "type": "http",
+      "url": "https://mcp.coinmarketcap.com/mcp",
+      "headers": {
+        "X-CMC-MCP-API-KEY": "YOUR_CMC_API_KEY"
+      },
+      "disabled": false,
+      "_setup": "注册地址: https://pro.coinmarketcap.com/signup | 免费: 10,000 credits/月, 30次/分钟 | 12个工具(行情/技术分析/链上/宏观/叙事/新闻)"
+    },
+
+    "coingecko": {
+      "command": "npx",
+      "args": ["-y", "@coingecko/coingecko-mcp"],
+      "env": {
+        "COINGECKO_PRO_API_KEY": "YOUR_CGK_PRO_API_KEY"
+      },
+      "disabled": false,
+      "_setup": "注册地址: https://www.coingecko.com/en/api/pricing | Demo免费(30次/分钟), Pro付费 | 含community_data/developer_data"
+    },
+
+    "rootdata": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "~/mcp-servers/rootdata-mcp-server",
+        "run",
+        "server.py"
+      ],
+      "env": {
+        "ROOTDATA_API_KEY": "YOUR_ROOTDATA_API_KEY"
+      },
+      "disabled": false,
+      "_setup": "1. clone仓库: git clone https://github.com/jincai/rootdata-mcp-server ~/mcp-servers/rootdata-mcp-server | 2. 注册API Key: https://www.rootdata.com/Api | 3. 将args中的路径改为你实际的clone路径 | 3个工具(搜索/项目详情/机构详情)"
+    },
+
+    "dune": {
+      "type": "http",
+      "url": "https://api.dune.com/mcp/v1",
+      "headers": {
+        "x-dune-api-key": "YOUR_DUNE_API_KEY"
+      },
+      "disabled": false,
+      "_setup": "注册地址: https://dune.com/settings/api | 免费: 2,500 points/月, 5次/分钟 | 7个工具(SQL查询/链上数据/可视化), 覆盖100+链"
+    },
+
+    "coinglass": {
+      "type": "http",
+      "url": "https://api-mcp.coinglass.com/mcp",
+      "headers": {
+        "CG-API-KEY": "YOUR_COINGLASS_API_KEY"
+      },
+      "disabled": false,
+      "_setup": "注册地址: https://www.coinglass.com/pricing | Hobbyist $29/月(80+端点, 30次/分) | 衍生品数据(OI/资金费率/爆仓/多空比/订单簿)"
+    }
+  }
+}

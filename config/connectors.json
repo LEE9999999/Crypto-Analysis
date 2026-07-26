@@ -1,0 +1,919 @@
+{
+  "version": "1.0.0",
+  "description": "可插拽数据连接器注册表 — 控制数据源的启用/禁用、优先级、认证方式和降级链。Agent 不直接调 API，而是通过数据层 facade 按 connector 配置自动获取数据。新增数据源只需在此文件添加一个 connector 条目。",
+
+  "design_principles": {
+    "principle_1": "Agent 与数据源解耦 — Agent 只声明需要什么数据类型(data_type)，数据层 facade 负责选择哪个 connector 获取",
+    "principle_2": "每个 connector 可独立启用/禁用 — enabled=false 时跳过，不影响其他 connector",
+    "principle_3": "同组 connector 按 priority 降序尝试 — priority=1 最先尝试，失败后自动 fallback 到 priority=2",
+    "principle_4": "认证方式可插拔 — api_key 通过环境变量注入，不硬编码在配置中",
+    "principle_5": "获取方式可切换 — 同一数据源可配置 api/webfetch/websearch/mcp 三种获取方式，按可用性自动选择"
+  },
+
+  "unified_data_object": {
+    "description": "所有 connector 返回的统一数据格式 (UDO) — Agent 只消费这个格式，不关心数据来自哪里",
+    "schema": {
+      "field": "string — 数据字段名，如 volume_24h, funding_total, twitter_followers",
+      "value": "any — 数据值",
+      "unit": "string — 单位，如 USD, count, percentage",
+      "source_connector": "string — 来自哪个 connector，如 cmc_api, socialblade_webfetch",
+      "source_type": "string — api | webfetch | websearch | mcp | manual",
+      "source_url": "string — 原始数据来源URL，用于溯源",
+      "confidence": "number — 0-1，基于 source_credibility.json 的层级和获取方式",
+      "timestamp": "string — ISO 8601，数据获取时间",
+      "cross_validated": "boolean — 是否被≥2个独立来源确认",
+      "validation_sources": "array — 交叉验证的来源列表",
+      "fallback_used": "boolean — 是否使用了降级源（主源失败后切换到替代源）",
+      "original_confidence": "number — 如果 fallback_used=true，记录主源应有的置信度",
+      "notes": "string — 可选，数据获取过程中的异常说明"
+    }
+  },
+
+  "connector_groups": {
+
+    "market_data": {
+      "description": "行情/市场数据 — 价格、交易量、市值、排名、交易所上线",
+      "data_types": ["price", "volume_24h", "market_cap", "cmc_rank", "percent_change_1h", "percent_change_24h", "percent_change_7d", "percent_change_30d", "exchange_listed", "circulating_supply", "total_supply"],
+      "cross_validation_required": true,
+      "cross_validation_min_sources": 2,
+
+      "connectors": [
+        {
+          "id": "cmc_mcp",
+          "name": "CoinMarketCap MCP",
+          "enabled": true,
+          "priority": 1,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "cmc-mcp",
+            "requires": "CMC API Key (写入 ~/.workbuddy/mcp.json 的 headers 字段)",
+            "free_tier": "Basic: 10,000 credits/month, 30 calls/min",
+            "credential_url": "https://pro.coinmarketcap.com/signup"
+          },
+          "acquisition": "mcp",
+          "mcp_url": "https://mcp.coinmarketcap.com/mcp",
+          "mcp_tools": [
+            "get_crypto_quotes_latest — 价格/市值/交易量/涨幅",
+            "search_cryptos — 搜索代币",
+            "get_crypto_info — 代币元数据",
+            "get_crypto_technical_analysis — 技术分析(SMA/EMA/MACD/RSI)",
+            "get_crypto_marketcap_technical_analysis — 市值技术分析",
+            "get_crypto_metrics — 链上指标(holder分布/地址/流通量/手续费)",
+            "get_global_metrics_latest — 全球市值/BTC dominance/恐惧贪婪指数/ETF流入",
+            "get_global_crypto_derivatives_metrics — 衍生品数据",
+            "trending_crypto_narratives — 热门叙事",
+            "get_upcoming_macro_events — 宏观事件",
+            "get_crypto_latest_news — 最新新闻",
+            "search_crypto_info — 语义搜索"
+          ],
+          "provides": ["price", "volume_24h", "market_cap", "cmc_rank", "percent_change_1h", "percent_change_24h", "percent_change_7d", "percent_change_30d", "circulating_supply", "total_supply", "exchange_listed", "technical_analysis", "holder_distribution", "global_metrics", "trending_narratives", "macro_events", "news"],
+          "fallback_for": null,
+          "confidence_base": 0.95,
+          "advantage": "12个MCP工具覆盖行情+技术分析+链上指标+全球宏观+叙事+新闻。远程HTTP, 无需本地安装。比直接API更丰富(含技术分析和语义搜索)。"
+        },
+        {
+          "id": "coingecko_mcp",
+          "name": "CoinGecko MCP",
+          "enabled": true,
+          "priority": 2,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "coingecko",
+            "requires": "CoinGecko Pro API Key (写入 ~/.workbuddy/mcp.json 的 env 字段)",
+            "free_tier": "Demo: 30 req/min (免费); Pro: 更高速率和完整工具集",
+            "credential_url": "https://www.coingecko.com/en/api/pricing"
+          },
+          "acquisition": "mcp",
+          "mcp_command": "npx -y @coingecko/coingecko-mcp",
+          "mcp_tools": [
+            "实时和历史价格、市值、交易量",
+            "交易所数据、热门代币、市场分析",
+            "DEX链上代币和池子数据",
+            "community_data (Reddit/Twitter/GitHub活跃度)",
+            "developer_data (GitHub提交/星标/PR)"
+          ],
+          "provides": ["price", "volume_24h", "market_cap", "percent_change_24h", "percent_change_7d", "circulating_supply", "community_data", "developer_data", "trending_coins", "exchange_data", "dex_pool_data"],
+          "fallback_for": "cmc_mcp",
+          "confidence_base": 0.95,
+          "advantage": "比CMC更早收录小项目, community_data含Reddit/Twitter/GitHub活跃度, developer_data含代码提交数据。Pro tier解锁全部工具和更高速率。"
+        },
+        {
+          "id": "cmc_api",
+          "name": "CoinMarketCap API (legacy, MCP替代)",
+          "enabled": false,
+          "priority": 3,
+          "auth": {
+            "type": "api_key",
+            "header_name": "X-CMC_PRO_API_KEY",
+            "env_var": "CMC_API_KEY",
+            "application_url": "https://pro.coinmarketcap.com/signup",
+            "free_tier": "10,000 credits/month"
+          },
+          "acquisition": "api",
+          "base_url": "https://pro-api.coinmarketcap.com/v1",
+          "endpoints": {
+            "quotes_latest": "/cryptocurrency/quotes/latest?symbol={ticker}",
+            "info": "/cryptocurrency/info?symbol={ticker}",
+            "listings": "/cryptocurrency/listings/latest?start=1&limit=500"
+          },
+          "rate_limit": "30 req/min (free), 300 req/min (paid)",
+          "provides": ["price", "volume_24h", "market_cap", "cmc_rank", "percent_change_1h", "percent_change_24h", "percent_change_7d", "percent_change_30d", "circulating_supply", "total_supply", "exchange_listed"],
+          "fallback_for": "coingecko_mcp",
+          "confidence_base": 0.9,
+          "notes": "已被 cmc_mcp 替代, 保留作为legacy备选。如MCP不可用可启用此connector走直接API。"
+        },
+        {
+          "id": "cmc_webfetch",
+          "name": "CoinMarketCap WebFetch",
+          "enabled": true,
+          "priority": 4,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://coinmarketcap.com/currencies/{slug}/",
+          "provides": ["price", "volume_24h", "market_cap", "cmc_rank", "percent_change_24h", "percent_change_7d", "circulating_supply", "exchange_listed"],
+          "fallback_for": "cmc_api",
+          "confidence_base": 0.75,
+          "notes": "无需 API Key 的降级方案，解析公开页面。数据可能有1-5分钟延迟。"
+        },
+        {
+          "id": "coingecko_api",
+          "name": "CoinGecko API (legacy, MCP替代)",
+          "enabled": false,
+          "priority": 5,
+          "auth": {
+            "type": "demo_key",
+            "header_name": "x-cg-demo-api-key",
+            "env_var": "CGK_DEMO_KEY",
+            "application_url": "https://www.coingecko.com/api/pricing",
+            "free_tier": "30 req/min (Demo API Key)"
+          },
+          "acquisition": "api",
+          "base_url": "https://api.coingecko.com/api/v3",
+          "endpoints": {
+            "simple_price": "/simple/price?ids={coingecko_id}&vs_currencies=usd&include_24hr_vol=true&include_market_cap=true",
+            "coin_data": "/coins/{coingecko_id}?tickers=true&market_data=true&community_data=true&developer_data=true",
+            "trending": "/search/trending"
+          },
+          "rate_limit": "30 req/min",
+          "provides": ["price", "volume_24h", "market_cap", "percent_change_24h", "percent_change_7d", "circulating_supply", "community_data", "developer_data"],
+          "fallback_for": "cmc_webfetch",
+          "confidence_base": 0.9,
+          "advantage": "比CMC更早收录小项目，community_data 包含 reddit/twitter/github 活跃度"
+        },
+        {
+          "id": "coingecko_webfetch",
+          "name": "CoinGecko WebFetch",
+          "enabled": true,
+          "priority": 6,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://www.coingecko.com/en/coins/{coingecko_id}",
+          "provides": ["price", "volume_24h", "market_cap", "percent_change_24h", "percent_change_7d"],
+          "fallback_for": "coingecko_api",
+          "confidence_base": 0.75
+        },
+        {
+          "id": "dexscreener_webfetch",
+          "name": "DexScreener WebFetch",
+          "enabled": true,
+          "priority": 7,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://dexscreener.com/{chain}/{contract_address}",
+          "url_pattern_alt": "https://dexscreener.com/search?q={ticker}",
+          "provides": ["price", "volume_24h", "liquidity", "dex_pairs", "holder_count"],
+          "fallback_for": "coingecko_webfetch",
+          "confidence_base": 0.8,
+          "notes": "适用于DEX交易的小项目/新项目，CMC/CGK 未收录时使用。"
+        }
+      ]
+    },
+
+    "funding_data": {
+      "description": "融资/投资/团队数据 — 融资金额、投资方、团队信息、做市商",
+      "data_types": ["funding_total", "funding_rounds", "investors_list", "lead_investor", "team_info", "track_tags", "market_maker"],
+      "cross_validation_required": true,
+      "cross_validation_min_sources": 2,
+
+      "connectors": [
+        {
+          "id": "rootdata_mcp",
+          "name": "RootData MCP",
+          "enabled": true,
+          "priority": 1,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "rootdata",
+            "requires": "RootData API Key (写入 ~/.workbuddy/mcp.json 的 env 字段)",
+            "free_tier": "需申请, 有限额",
+            "credential_url": "https://www.rootdata.com/Api"
+          },
+          "acquisition": "mcp",
+          "mcp_command": "uv run server.py (本地Python服务, 需先clone: https://github.com/jincai/rootdata-mcp-server)",
+          "mcp_server_path": "<用户自行clone的路径, 如 ~/mcp-servers/rootdata-mcp-server>",
+          "mcp_tools": [
+            "search — 根据关键词搜索项目/VC/人物的简要信息",
+            "get_project — 根据项目ID获取项目的详细信息(融资/团队/赛道)",
+            "get_organization — 根据机构ID获取风投机构的详细信息"
+          ],
+          "provides": ["funding_total", "funding_rounds", "investors_list", "lead_investor", "team_info", "track_tags", "market_maker", "organization_detail"],
+          "fallback_for": null,
+          "confidence_base": 0.95,
+          "advantage": "中文加密项目数据库最优, 覆盖大量亚洲项目。MCP方式比直接API更便捷, Agent可直接调用工具。"
+        },
+        {
+          "id": "rootdata_api",
+          "name": "RootData API (legacy, MCP替代)",
+          "enabled": false,
+          "priority": 2,
+          "auth": {
+            "type": "api_key",
+            "header_name": "apikey",
+            "env_var": "ROOTDATA_API_KEY",
+            "application_url": "https://www.rootdata.com/Api",
+            "free_tier": "需申请，有限额"
+          },
+          "acquisition": "api",
+          "base_url": "https://api.rootdata.com/open",
+          "endpoints": {
+            "search": "/ser_inv?query={project_name}"
+          },
+          "provides": ["funding_total", "funding_rounds", "investors_list", "lead_investor", "team_info", "track_tags", "market_maker"],
+          "fallback_for": "rootdata_mcp",
+          "confidence_base": 0.9,
+          "notes": "已被 rootdata_mcp 替代, 保留作为legacy备选。"
+        },
+        {
+          "id": "rootdata_webfetch",
+          "name": "RootData WebFetch",
+          "enabled": true,
+          "priority": 3,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://www.rootdata.com/Projects/detail/{rootdata_id}",
+          "url_pattern_search": "https://www.rootdata.com/Search?type=1&keyword={project_name}",
+          "provides": ["funding_total", "funding_rounds", "investors_list", "lead_investor", "team_info", "track_tags"],
+          "fallback_for": "rootdata_api",
+          "confidence_base": 0.8,
+          "notes": "RootData公开页面信息较全，WebFetch通常能获取大部分数据。"
+        },
+        {
+          "id": "official_site_webfetch",
+          "name": "Official Site WebFetch",
+          "enabled": true,
+          "priority": 4,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "{official_website}",
+          "provides": ["team_info", "track_tags", "description", "roadmap", "partnerships"],
+          "fallback_for": "rootdata_webfetch",
+          "confidence_base": 0.6,
+          "notes": "官方信息，但可能有自我宣传偏差。融资数据需交叉验证。"
+        },
+        {
+          "id": "media_websearch",
+          "name": "Media WebSearch (融资新闻)",
+          "enabled": true,
+          "priority": 5,
+          "auth": { "type": "none" },
+          "acquisition": "websearch",
+          "queries": [
+            "\"{project_name}\" funding OR raised OR series OR 融资",
+            "\"{project_name}\" lead investor OR 领投"
+          ],
+          "provides": ["funding_total", "investors_list", "lead_investor", "market_maker"],
+          "fallback_for": "official_site_webfetch",
+          "confidence_base": 0.7,
+          "notes": "通过新闻搜索获取融资信息，需与RootData交叉验证。"
+        }
+      ]
+    },
+
+    "social_data": {
+      "description": "社交/传播数据 — Twitter粉丝、KOL讨论、互动量、机器人检测",
+      "data_types": ["twitter_followers", "twitter_growth", "kol_mentions", "kol_tier", "engagement_rate", "sentiment", "bot_activity_score"],
+      "cross_validation_required": false,
+      "cross_validation_min_sources": 1,
+
+      "connectors": [
+        {
+          "id": "twitter_api_mcp",
+          "name": "Twitter API (via MCP)",
+          "enabled": false,
+          "priority": 1,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "twitter",
+            "requires": "推荐免费方案: 浏览器cookies (无需Twitter API Key, 无需开发者账号) | 备选付费方案: Twitter API Bearer Token",
+            "free_tier": "免费方案: 无限制(浏览器级别限速) | 付费方案: Free 100 reads/month, Basic $100/month 10K reads, Pro $5000/month",
+            "setup_guide": "推荐 twikit-mcp (免费, 浏览器cookies认证), 见下方 mcp_server_options",
+            "credential_url": "免费方案无需申请任何凭据, 只需一个Twitter账号登录浏览器即可"
+          },
+          "acquisition": "mcp",
+          "mcp_server_options": [
+            {
+              "name": "twikit-mcp (推荐, 免费, Python)",
+              "repo": "https://github.com/tangivis/twitter-mcp",
+              "runtime": "Python 3.9+",
+              "cost": "完全免费",
+              "auth_method": "浏览器cookies (ct0 + auth_token), 无需Twitter API Key, 无需开发者账号",
+              "principle": "使用twikit库逆向Twitter内部GraphQL API, 以浏览器身份请求, 绕过官方付费API",
+              "config_example": {
+                "mcpServers": {
+                  "twitter": {
+                    "command": "python",
+                    "args": ["/path/to/twitter-mcp/server.py"],
+                    "env": {
+                      "TWITTER_COOKIES": "/path/to/cookies.json"
+                    }
+                  }
+                }
+              },
+              "cookies_json_format": "{\"ct0\": \"your_ct0_value\", \"auth_token\": \"your_auth_token_value\"}",
+              "capabilities": ["get_tweet", "get_user", "search_tweets", "get_user_tweets", "get_trending", "get_bookmarks", "get_me", "get_my_timeline"],
+              "auth_required": "Twitter浏览器cookies (登录x.com后从DevTools获取)",
+              "rate_limit": "浏览器级别, 无官方API费率限制",
+              "notes": "最推荐: 完全免费, 功能全面, 可搜索推文/查用户/获取时间线。cookies有效期约5年(除非主动登出)。"
+            },
+            {
+              "name": "granitebps/twitter-mcp rettiwt模式 (免费, Node.js)",
+              "repo": "https://github.com/granitebps/twitter-mcp",
+              "runtime": "Node.js 18+",
+              "cost": "完全免费 (rettiwt模式)",
+              "auth_method": "rettiwt-api直连Twitter内部端点, guest模式无需任何凭据; full模式需浏览器cookies提取的key",
+              "principle": "rettiwt-api库直接调用Twitter内部API, guest模式甚至不需要登录",
+              "config_example": {
+                "mcpServers": {
+                  "twitter": {
+                    "command": "node",
+                    "args": ["/path/to/twitter-mcp/dist/index.js"],
+                    "env": {
+                      "TWITTER_MODE": "rettiwt"
+                    }
+                  }
+                }
+              },
+              "modes": {
+                "rettiwt_guest": "免费, 无需任何凭据, 仅支持get_tweet和get_user_profile",
+                "rettiwt_full": "免费, 需浏览器cookies提取的RETTIWT_API_KEY, 支持全部4个工具(search_tweets等)",
+                "scraper": "免费, 需Twitter账号密码, 使用@the-convocation/twitter-scraper",
+                "api": "付费, 需Twitter开发者账号和Bearer Token"
+              },
+              "capabilities": ["get_tweet", "get_tweet_replies", "get_user_profile", "search_tweets"],
+              "auth_required": "rettiwt模式: 无(guest) 或 浏览器cookies提取key(full); scraper模式: Twitter账号密码",
+              "notes": "备选: Node.js生态, rettiwt guest模式零配置即可查推文和用户资料。full模式需安装X Auth Helper浏览器扩展提取key。"
+            },
+            {
+              "name": "Miles0sage/twitter-mcp (免费, Playwright, Python)",
+              "repo": "https://github.com/Miles0sage/twitter-mcp",
+              "runtime": "Python 3.13+ + Playwright (需安装Chromium)",
+              "cost": "完全免费",
+              "auth_method": "Playwright浏览器自动化 + 持久Chrome profile, 一次性浏览器登录后cookies自动保存",
+              "principle": "用真实Chromium浏览器模拟人工操作, 反检测能力最强, Twitter难以封禁",
+              "config_example": {
+                "mcpServers": {
+                  "twitter": {
+                    "command": "python3",
+                    "args": ["server.py"],
+                    "cwd": "/path/to/twitter-mcp"
+                  }
+                }
+              },
+              "capabilities": ["twitter_search", "twitter_user", "twitter_user_tweets", "twitter_trending", "twitter_feed", "twitter_bookmarks", "twitter_post", "twitter_reply", "twitter_like", "twitter_retweet", "twitter_notifications"],
+              "auth_required": "读操作无需认证; 写操作需一次性浏览器登录(持久保存)",
+              "rate_limit": "浏览器级别, 无API费率限制",
+              "notes": "最稳定但最重: 需安装Chromium(~300MB), 反检测能力最强。适合长期高频使用。服务器环境需配Xvfb虚拟显示。"
+            },
+            {
+              "name": "x-mcp (付费, 官方Twitter API, 不推荐)",
+              "repo": "https://github.com/ajitashwath/x-mcp",
+              "runtime": "Python 3.9+",
+              "cost": "Twitter API Basic $100/month 起",
+              "auth_method": "Twitter官方API Bearer Token, 需开发者账号",
+              "config_example": {
+                "mcpServers": {
+                  "twitter": {
+                    "command": "python",
+                    "args": ["/path/to/x-mcp/server.py"],
+                    "env": {
+                      "TWITTER_BEARER_TOKEN": "your_bearer_token_here"
+                    }
+                  }
+                }
+              },
+              "capabilities": ["tweet_search", "user_info", "user_timeline", "hashtag_analysis", "trending_topics"],
+              "auth_required": "TWITTER_BEARER_TOKEN (需Twitter开发者账号, Free tier仅100次/月)",
+              "notes": "不推荐: 需付费Twitter API。仅当已有Pro/Enterprise API账号时考虑。免费tier(100次/月)不足以支撑评估插件使用。"
+            }
+          ],
+          "setup_steps": [
+            "1. git clone https://github.com/tangivis/twitter-mcp.git && cd twitter-mcp",
+            "2. 安装依赖: pip install -r requirements.txt (或 uvx twikit-mcp 一键安装)",
+            "3. 用浏览器登录 x.com (Twitter), 按 F12 打开DevTools",
+            "4. Application → Cookies → https://x.com → 复制 ct0 和 auth_token 两个值",
+            "5. 创建 cookies.json: {\"ct0\": \"复制的ct0值\", \"auth_token\": \"复制的auth_token值\"}",
+            "6. 在 ~/.workbuddy/mcp.json 中添加 twitter server 配置 (见 mcp_server_options[0].config_example)",
+            "7. 重启WorkBuddy后在连接器管理页面点击Trust启用",
+            "8. 将 connectors.json 中 twitter_api_mcp 的 enabled 改为 true",
+            "注意: 此方案完全免费, 无需Twitter开发者账号, 无需API Key。cookies有效期约5年(除非主动登出)。"
+          ],
+          "endpoints": {
+            "user_info": "MCP工具: get_user(username) → 粉丝数、关注数、发推数、简介",
+            "tweet_search": "MCP工具: search_tweets(query) → 推文搜索、互动量、KOL身份",
+            "user_tweets": "MCP工具: get_user_tweets(username) → 近期推文及互动数据",
+            "trending": "MCP工具: get_trending() → 当前热门话题"
+          },
+          "provides": ["twitter_followers", "twitter_growth", "kol_mentions", "kol_tier", "engagement_rate", "sentiment"],
+          "fallback_for": null,
+          "confidence_base": 0.9,
+          "advantage": "完全免费, 实时性强, 可获取完整推文搜索和用户数据。使用浏览器cookies认证, 无需Twitter付费API, 无API费率限制。"
+        },
+        {
+          "id": "socialblade_webfetch",
+          "name": "SocialBlade WebFetch",
+          "enabled": true,
+          "priority": 2,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://socialblade.com/twitter/user/{twitter_handle}",
+          "provides": ["twitter_followers", "twitter_growth", "engagement_rate"],
+          "fallback_for": "twitter_api_mcp",
+          "confidence_base": 0.7,
+          "notes": "第三方聚合，数据有1-7天延迟。但无需API Key，作为基线可用。"
+        },
+        {
+          "id": "twitter_websearch",
+          "name": "Twitter WebSearch (KOL讨论)",
+          "enabled": true,
+          "priority": 3,
+          "auth": { "type": "none" },
+          "acquisition": "websearch",
+          "queries": [
+            "site:x.com \"{project_name}\" OR \"${ticker}\"",
+            "site:x.com \"{project_name}\" (review OR analysis OR thread OR scam OR rug)"
+          ],
+          "provides": ["kol_mentions", "kol_tier", "sentiment", "bot_activity_score"],
+          "fallback_for": "socialblade_webfetch",
+          "confidence_base": 0.5,
+          "notes": "搜索引擎索引的推文，非实时，覆盖率有限。KOL层级需对照 influence_tiers.json 判定。"
+        },
+        {
+          "id": "lunarcrush_api",
+          "name": "LunarCrush API (社交情绪)",
+          "enabled": false,
+          "priority": 4,
+          "auth": {
+            "type": "api_key",
+            "header_name": "Authorization",
+            "env_var": "LUNARCRUSH_API_KEY",
+            "application_url": "https://lunarcrush.com/developers",
+            "free_tier": "有限免费额度"
+          },
+          "acquisition": "api",
+          "base_url": "https://lunarcrush.com/api3",
+          "provides": ["social_dominance", "social_volume", "sentiment", "galaxy_score", "alt_rank"],
+          "fallback_for": "twitter_websearch",
+          "confidence_base": 0.8,
+          "advantage": "专业的社交指标聚合，galaxy_score 和 alt_rank 是行业认可的社交热度指标"
+        }
+      ]
+    },
+
+    "onchain_data": {
+      "description": "链上数据 — Holder分布、Smart Money、流动性、合约风险、链上资金流",
+      "data_types": ["holder_concentration", "top10_holders", "smart_money_signal", "smart_money_net", "liquidity_depth", "contract_risk", "trading_naturalness", "exchange_net_flow", "large_transfers", "whale_activity"],
+      "cross_validation_required": true,
+      "cross_validation_min_sources": 2,
+
+      "connectors": [
+        {
+          "id": "dune_mcp",
+          "name": "Dune Analytics MCP",
+          "enabled": true,
+          "priority": 1,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "dune",
+            "requires": "Dune API Key (写入 ~/.workbuddy/mcp.json 的 headers 字段, key名 x-dune-api-key)",
+            "free_tier": "免费注册即得API Key, 免费tier: 2,500 points/月, 5次/分钟",
+            "credential_url": "https://dune.com/settings/api"
+          },
+          "acquisition": "mcp",
+          "mcp_url": "https://api.dune.com/mcp/v1",
+          "mcp_tools": [
+            "listBlockchains — 列出100+条已索引链",
+            "searchTables — 搜索Dune数据目录(原始表/解码合约/社区表)",
+            "executeSQLQuery — 执行DuneSQL查询并返回结果",
+            "getExecutionResults — 获取查询执行结果(含CSV/JSON)",
+            "getLatestResults — 获取已保存查询的最新结果",
+            "createVisualization — 为查询结果创建可视化图表",
+            "getUsage — 查看API用量"
+          ],
+          "provides": ["holder_concentration", "top10_holders", "smart_money_signal", "smart_money_net", "exchange_net_flow", "large_transfers", "whale_activity", "liquidity_depth", "trading_naturalness"],
+          "fallback_for": null,
+          "confidence_base": 0.95,
+          "advantage": "官方远程MCP, 覆盖100+链. 可用SQL查询任意链上数据: 持仓分布/资金流/鲸鱼追踪/DEX交易/Smart Money. Agent自动生成SQL, 无需手写. 免费tier足够日常评估(2500 points/月)."
+        },
+        {
+          "id": "arkham_webfetch",
+          "name": "Arkham Intelligence WebFetch",
+          "enabled": true,
+          "priority": 2,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://platform.arkhamintelligence.com/explorer/entity/{project_name}",
+          "url_pattern_address": "https://platform.arkhamintelligence.com/explorer/address/{address}",
+          "provides": ["exchange_net_flow", "smart_money_signal", "holder_concentration"],
+          "fallback_for": "dune_mcp",
+          "confidence_base": 0.8,
+          "notes": "免费平台, 可查地址标签和资金流向。API需付费, 但WebFetch公开页面可获取基础数据。"
+        },
+        {
+          "id": "etherscan_webfetch",
+          "name": "Etherscan / Block Explorer WebFetch",
+          "enabled": true,
+          "priority": 3,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_patterns": {
+            "ethereum": "https://etherscan.io/token/{contract_address}",
+            "bsc": "https://bscscan.com/token/{contract_address}",
+            "polygon": "https://polygonscan.com/token/{contract_address}",
+            "solana": "https://solscan.io/token/{mint_address}",
+            "arbitrum": "https://arbiscan.io/token/{contract_address}",
+            "base": "https://basescan.org/token/{contract_address}"
+          },
+          "provides": ["holder_concentration", "top10_holders", "contract_risk", "trading_naturalness"],
+          "fallback_for": "arkham_webfetch",
+          "confidence_base": 0.85,
+          "notes": "链上浏览器为客观事实，但解读需注意上下文。Holder分布可从token页面直接获取。"
+        },
+        {
+          "id": "dexscreener_onchain",
+          "name": "DexScreener Onchain Data",
+          "enabled": true,
+          "priority": 4,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://dexscreener.com/{chain}/{contract_address}",
+          "provides": ["liquidity_depth", "holder_concentration", "top10_holders", "trading_naturalness"],
+          "fallback_for": "etherscan_webfetch",
+          "confidence_base": 0.8,
+          "notes": "DEX数据，流动性深度和交易对信息较好。"
+        },
+        {
+          "id": "goplus_api",
+          "name": "GoPlus Security API",
+          "enabled": false,
+          "priority": 5,
+          "auth": { "type": "none" },
+          "acquisition": "api",
+          "base_url": "https://api.gopluslabs.io/api/v1",
+          "endpoints": {
+            "token_security": "/token_security/{chain_id}?contract_addresses={contract_address}"
+          },
+          "provides": ["contract_risk", "is_honeypot", "is_proxy", "is_mintable", "can_take_back_ownership", "owner_change_balance", "hidden_owner", "selfdestruct", "external_call", "is_blacklisted"],
+          "fallback_for": null,
+          "confidence_base": 0.9,
+          "notes": "GoPlus是免费的合约安全检测API，无需Key，强烈建议启用。"
+        }
+      ]
+    },
+
+    "derivatives_data": {
+      "description": "衍生品数据 — OI/资金费率/爆仓/多空比/订单簿, 服务D6资金力和D7市场表现",
+      "data_types": ["open_interest", "funding_rate", "liquidation", "long_short_ratio", "order_book_depth", "etf_flow", "exchange_position"],
+      "cross_validation_required": false,
+      "cross_validation_min_sources": 1,
+
+      "connectors": [
+        {
+          "id": "coinglass_mcp",
+          "name": "CoinGlass MCP (Beta)",
+          "enabled": true,
+          "priority": 1,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "coinglass",
+            "requires": "CoinGlass API Key (写入 ~/.workbuddy/mcp.json 的 headers 字段, key名 CG-API-KEY)",
+            "free_tier": "Hobbyist $29/月(80+端点, 30次/分) | Startup $59/月 | Standard $99/月",
+            "credential_url": "https://www.coinglass.com/pricing"
+          },
+          "acquisition": "mcp",
+          "mcp_url": "https://api-mcp.coinglass.com/mcp",
+          "mcp_tools": [
+            "funding_rate — 资金费率趋势分析",
+            "open_interest — 未平仓合约量变化监控",
+            "liquidation — 爆仓分布分析",
+            "long_short_ratio — 多空持仓比",
+            "order_book — 订单簿深度分析(支撑/阻力)",
+            "etf_flow — ETF资金流入流出",
+            "exchange_position — 交易所持仓变化"
+          ],
+          "provides": ["open_interest", "funding_rate", "liquidation", "long_short_ratio", "order_book_depth", "etf_flow", "exchange_position"],
+          "fallback_for": null,
+          "confidence_base": 0.95,
+          "advantage": "官方MCP(Beta), 衍生品数据最全的聚合平台。80+端点覆盖OI/资金费率/爆仓/多空比/订单簿/ETF。直接服务D6资金力(合约OI/稳定币占比)和D7市场表现(多空比/支撑阻力)。"
+        },
+        {
+          "id": "cmc_derivatives_mcp",
+          "name": "CMC Derivatives (via CMC MCP)",
+          "enabled": true,
+          "priority": 2,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "cmc-mcp",
+            "requires": "已配置, 与market_data组共用CMC MCP"
+          },
+          "acquisition": "mcp",
+          "mcp_tools": [
+            "get_global_crypto_derivatives_metrics — 全球衍生品指标(OI/资金费率/清算)"
+          ],
+          "provides": ["open_interest", "funding_rate", "liquidation"],
+          "fallback_for": "coinglass_mcp",
+          "confidence_base": 0.9,
+          "notes": "CMC MCP已配置, 其get_global_crypto_derivatives_metrics工具覆盖部分衍生品数据。作为CoinGlass的降级源。"
+        }
+      ]
+    },
+
+    "narrative_data": {
+      "description": "叙事传播数据 — Web2传播、搜索引擎热度、主流媒体、AI讨论、内容平台",
+      "data_types": ["search_trends", "mainstream_media_count", "ai_discussion_score", "content_platform_count", "video_podcast_count", "bot_activity_inverse"],
+      "cross_validation_required": false,
+      "cross_validation_min_sources": 1,
+
+      "connectors": [
+        {
+          "id": "google_trends_webfetch",
+          "name": "Google Trends WebFetch",
+          "enabled": true,
+          "priority": 1,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://trends.google.com/trends/explore?q={project_name}",
+          "provides": ["search_trends"],
+          "fallback_for": null,
+          "confidence_base": 0.7,
+          "notes": "Google Trends页面可WebFetch获取趋势数据，反映搜索热度变化。"
+        },
+        {
+          "id": "mainstream_media_websearch",
+          "name": "Mainstream Media WebSearch",
+          "enabled": true,
+          "priority": 2,
+          "auth": { "type": "none" },
+          "acquisition": "websearch",
+          "queries": [
+            "site:bloomberg.com OR site:reuters.com OR site:forbes.com OR site:techcrunch.com \"{project_name}\"",
+            "site:36kr.com OR site:sina.com.cn \"{project_name}\" OR \"${ticker}\""
+          ],
+          "provides": ["mainstream_media_count"],
+          "fallback_for": null,
+          "confidence_base": 0.8,
+          "notes": "非Crypto主流媒体报道数量，反映叙事是否出圈。"
+        },
+        {
+          "id": "ai_discussion_websearch",
+          "name": "AI/Agent Discussion WebSearch",
+          "enabled": true,
+          "priority": 3,
+          "auth": { "type": "none" },
+          "acquisition": "websearch",
+          "queries": [
+            "\"{project_name}\" \"AI agent\" OR \"ChatGPT\" OR \"Claude\" OR \"Perplexity\"",
+            "\"{project_name}\" \"AI\" \"crypto\""
+          ],
+          "provides": ["ai_discussion_score"],
+          "fallback_for": null,
+          "confidence_base": 0.6,
+          "notes": "对于AI赛道项目，此维度尤为重要。AI叙事是当前最强叙事之一。"
+        },
+        {
+          "id": "content_platforms_websearch",
+          "name": "Content Platforms WebSearch",
+          "enabled": true,
+          "priority": 4,
+          "auth": { "type": "none" },
+          "acquisition": "websearch",
+          "queries": [
+            "site:medium.com OR site:mirror.xyz OR site:substack.com \"{project_name}\"",
+            "site:youtube.com \"{project_name}\" review OR analysis OR explained",
+            "site:zhihu.com \"{project_name}\" OR \"${ticker}\""
+          ],
+          "provides": ["content_platform_count", "video_podcast_count"],
+          "fallback_for": null,
+          "confidence_base": 0.7
+        }
+      ]
+    },
+
+    "market_maker_data": {
+      "description": "做市商数据 — 做市商识别和验证",
+      "data_types": ["market_maker_name", "market_maker_tier", "mm_confidence"],
+      "cross_validation_required": false,
+      "cross_validation_min_sources": 1,
+
+      "connectors": [
+        {
+          "id": "mm_websearch",
+          "name": "Market Maker WebSearch",
+          "enabled": true,
+          "priority": 1,
+          "auth": { "type": "none" },
+          "acquisition": "websearch",
+          "queries": [
+            "\"{project_name}\" market maker OR 做市商 OR liquidity provider",
+            "\"{project_name}\" Wintermute OR GSR OR \"DWF Labs\" OR \"Flow Traders\" OR Cumberland OR Galaxy",
+            "\"{project_name}\" OR \"${ticker}\" listing announcement market maker"
+          ],
+          "provides": ["market_maker_name", "market_maker_tier", "mm_confidence"],
+          "fallback_for": null,
+          "confidence_base": 0.6,
+          "notes": "做市商数据通常不公开，主要通过新闻搜索和公告获取线索。"
+        },
+        {
+          "id": "mm_rootdata",
+          "name": "RootData Market Maker Info",
+          "enabled": true,
+          "priority": 2,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://www.rootdata.com/Projects/detail/{rootdata_id}",
+          "provides": ["market_maker_name"],
+          "fallback_for": "mm_websearch",
+          "confidence_base": 0.7,
+          "notes": "RootData项目详情页有时包含做市商信息。"
+        },
+        {
+          "id": "mm_onchain_lp",
+          "name": "On-chain LP Analysis (做市商推断)",
+          "enabled": true,
+          "priority": 3,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "method": "检查DEX流动性池的大额LP提供者地址，与已知做市商地址库比对",
+          "known_mm_addresses": [
+            "Wintermute: 0x4F9Fe3903f531BE0507572840C71E02D5E34a55F (ETH)",
+            "GSR: 0x27e268FA21F41700e46F1C8E2e0cC832FbAa9E9a (ETH)",
+            "DWF Labs: 通过公告识别，地址变化较大"
+          ],
+          "provides": ["market_maker_name", "market_maker_tier"],
+          "fallback_for": "mm_rootdata",
+          "confidence_base": 0.65,
+          "notes": "通过链上LP地址推断做市商。已知做市商地址可从Arkham获取标签。"
+        },
+        {
+          "id": "mm_exchange_announcement",
+          "name": "Exchange Listing Announcement",
+          "enabled": true,
+          "priority": 4,
+          "auth": { "type": "none" },
+          "acquisition": "websearch",
+          "queries": [
+            "site:binance.com \"{project_name}\" OR \"${ticker}\" listing",
+            "site:okx.com \"{project_name}\" OR \"${ticker}\" listing",
+            "site:bybit.com \"{project_name}\" OR \"${ticker}\" listing"
+          ],
+          "provides": ["market_maker_name", "market_maker_tier"],
+          "fallback_for": "mm_onchain_lp",
+          "confidence_base": 0.7,
+          "notes": "交易所上线公告有时会公布做市商。Binance/OKX/Bybit的上线公告值得检查。"
+        }
+      ]
+    },
+
+    "security_data": {
+      "description": "安全审计数据 — 审计报告、合约安全检测",
+      "data_types": ["audit_status", "audit_firm", "audit_findings", "is_honeypot", "contract_permissions", "code_score"],
+      "cross_validation_required": false,
+      "cross_validation_min_sources": 1,
+
+      "connectors": [
+        {
+          "id": "goplus_security_api",
+          "name": "GoPlus Security API",
+          "enabled": false,
+          "priority": 1,
+          "auth": { "type": "none" },
+          "acquisition": "api",
+          "base_url": "https://api.gopluslabs.io/api/v1",
+          "endpoints": {
+            "token_security": "/token_security/{chain_id}?contract_addresses={contract_address}"
+          },
+          "provides": ["is_honeypot", "is_proxy", "is_mintable", "can_take_back_ownership", "owner_change_balance", "hidden_owner", "selfdestruct", "external_call", "is_blacklisted", "contract_permissions"],
+          "fallback_for": null,
+          "confidence_base": 0.9,
+          "notes": "免费API无需Key，提供全面的合约安全检测。强烈建议启用。"
+        },
+        {
+          "id": "certik_webfetch",
+          "name": "CertiK Skynet WebFetch",
+          "enabled": true,
+          "priority": 2,
+          "auth": { "type": "none" },
+          "acquisition": "webfetch",
+          "url_pattern": "https://www.certik.com/projects/{project_name}",
+          "url_pattern_search": "https://skynet.certik.com/search?q={project_name}",
+          "provides": ["audit_status", "audit_firm", "audit_findings", "security_score"],
+          "fallback_for": "goplus_security_api",
+          "confidence_base": 0.95,
+          "notes": "CertiK是顶级审计机构，其Skynet平台提供安全评分。"
+        },
+        {
+          "id": "audit_websearch",
+          "name": "Audit Report WebSearch",
+          "enabled": true,
+          "priority": 3,
+          "auth": { "type": "none" },
+          "acquisition": "websearch",
+          "queries": [
+            "\"{project_name}\" audit OR 安全审计 OR CertiK OR SlowMist OR Quantstamp OR PeckShield",
+            "\"{project_name}\" audit report site:github.com"
+          ],
+          "provides": ["audit_status", "audit_firm", "audit_findings"],
+          "fallback_for": "certik_webfetch",
+          "confidence_base": 0.7
+        }
+      ]
+    }
+  },
+
+  "global_settings": {
+    "max_webfetch_per_project": 8,
+    "timeout_seconds": 30,
+    "rate_limit_respect": true,
+    "cache_duration_minutes": 60,
+
+    "data_handling_strategy": {
+      "description": "数据降级/阻断策略 — 补充需求",
+      "critical_data_block": {
+        "description": "关键数据不足时阻断评估",
+        "critical_fields": [
+          "project_name",
+          "ticker",
+          "contract_address (TGE项目)",
+          "official_website",
+          "track (赛道)"
+        ],
+        "behavior": "如果关键数据无法从任何connector获取 → 阻断评估，输出已获取的信息和阻断原因",
+        "output": "BLOCKED: 缺少关键数据 {field}，无法继续评估。建议用户手动提供该信息。"
+      },
+      "non_critical_degrade": {
+        "description": "非关键数据失败时降级评分",
+        "behavior": "标注 🚫 无法获取，该指标不参与评分，维度评分给保守分(≤5)并标注数据缺失",
+        "output": "DEGRADED: {field} 数据缺失，{dimension} 维度降级评分(≤5)"
+      },
+      "auto_source_switch": {
+        "description": "有替代源时自动切换",
+        "behavior": "主源(priority=N)失败后，自动尝试同组fallback connector(priority=N+1)，直到所有connector耗尽",
+        "logging": "切换时记录 fallback_used=true, original_confidence=主源应有置信度, source_connector=实际使用的connector",
+        "confidence_change": "降级源的confidence_base通常比主源低0.1-0.2，需在UDO中记录"
+      },
+      "gap_logging": {
+        "description": "完整记录缺失项和置信度变化",
+        "output_format": "每个数据点在UDO中记录: source_connector, source_type, confidence, fallback_used, original_confidence, cross_validated, validation_sources, notes",
+        "report_section": "阶段五报告中'信息缺口与数据质量'章节必须包含: 缺失字段列表 + 置信度分布 + 降级使用记录"
+      }
+    },
+
+    "cross_validation_rules": {
+      "description": "交叉验证规则 — 对标记为 cross_validation_required=true 的数据组执行",
+      "rule_1": "同组≥2个connector返回数据且差异<10% → 标记 cross_validated=true, confidence提升0.05",
+      "rule_2": "同组≥2个connector返回数据但差异>10% → 标记 ⚠️ 多源数据冲突, 取中位数, confidence降低0.1",
+      "rule_3": "仅有1个connector返回数据 → 标记 ❓ 单一来源, confidence不超过0.6(对应评分不超过5)",
+      "rule_4": "所有connector均失败 → 标记 🚫 无法获取, 该数据点不参与评分"
+    }
+  },
+
+  "env_var_template": {
+    "description": "API Key 管理方式说明 — 所有Key统一写入 ~/.workbuddy/mcp.json, 不写入项目文件",
+    "path_a_mcp": {
+      "description": "路径A: 通过MCP Server获取数据 (主路径, 已配置5个MCP: CMC/CoinGecko/RootData/Dune/CoinGlass)",
+      "applies_to": {
+        "cmc-mcp": "CoinMarketCap — 远程HTTP MCP, Key写在headers字段(X-CMC-MCP-API-KEY), 12个工具(行情/技术分析/链上/宏观/叙事/新闻)",
+        "coingecko": "CoinGecko — 本地npx MCP, Key写在env字段(COINGECKO_PRO_API_KEY), 含community_data和developer_data",
+        "rootdata": "RootData — 本地Python MCP (uv运行), Key写在env字段(ROOTDATA_API_KEY), 3个工具(搜索/项目详情/机构详情)",
+        "dune": "Dune Analytics — 远程HTTP MCP, Key写在headers字段(x-dune-api-key), 7个工具(SQL查询/链上数据/可视化). 免费注册即得Key",
+        "coinglass": "CoinGlass — 远程HTTP MCP(Beta), Key写在headers字段(CG-API-KEY), 衍生品数据(OI/资金费率/爆仓/多空比)",
+        "twitter": "Twitter/X — 暂用WebFetch, 未来可配twikit-mcp(免费, 浏览器cookies)"
+      },
+      "config_file": "~/.workbuddy/mcp.json",
+      "how_to_enable": [
+        "1. 将API Key填入 ~/.workbuddy/mcp.json 中对应的占位符",
+        "2. 重启WorkBuddy",
+        "3. 在连接器管理页面(右上角)点击Trust启用每个新MCP Server",
+        "4. connectors.json中对应MCP connector的enabled已设为true"
+      ],
+      "cost": "CMC: 免费Basic tier(10K credits/月) | CoinGecko: Demo免费/Pro付费 | RootData: 需申请 | Dune: 免费(2500 points/月) | CoinGlass: $29/月起 | Twitter: 暂用WebFetch(免费)"
+    },
+    "path_b_webfetch": {
+      "description": "路径B: 通过WebFetch公开页面获取 (自动降级路径, 无需任何Key)",
+      "applies_to": ["CMC公开页面", "CoinGecko公开页面", "RootData公开页面", "Arkham", "Etherscan", "DexScreener", "CertiK", "所有其他数据源"],
+      "how": "当MCP Server不可用或未配置Key时, 自动降级到WebFetch抓取公开页面",
+      "advantage": "零配置, 零成本, 作为MCP的兜底方案",
+      "limitation": "数据精度和完整性不如MCP/API, 部分高级数据(技术分析/developer_data/语义搜索)无法获取"
+    },
+    "security_rule": "API Key 永远不写入 connectors.json 或任何项目文件。所有Key统一写在 ~/.workbuddy/mcp.json (用户目录, 不在项目仓库内)。远程HTTP MCP的Key在headers字段(CMC: X-CMC-MCP-API-KEY, Dune: x-dune-api-key, CoinGlass: CG-API-KEY); 本地MCP的Key在env字段(CoinGecko: COINGECKO_PRO_API_KEY, RootData: ROOTDATA_API_KEY)。"
+  }
+}

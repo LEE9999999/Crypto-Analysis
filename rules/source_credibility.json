@@ -1,0 +1,241 @@
+{
+  "version": "1.1.0",
+  "description": "信息来源可信度评分表 — 用于标注每个数据点的可信度等级，指导交叉验证策略。v1.1增加替代源链和Twitter获取方案",
+
+  "tiers": {
+    "T1_official": {
+      "level": 1,
+      "credibility": 1.0,
+      "label": "官方一手",
+      "description": "项目官方发布的信息，最高可信度，但可能存在自我宣传偏差",
+      "sources": [
+        "项目官网",
+        "官方白皮书",
+        "官方文档 (docs)",
+        "官方推特账号",
+        "官方Github仓库",
+        "官方Discord/Telegram公告",
+        "官方博客",
+        "团队核心成员实名账号发布"
+      ],
+      "usage_notes": "作为事实基准，但融资/数据类信息仍需T2-T5交叉验证"
+    },
+
+    "T2_authoritative_data": {
+      "level": 2,
+      "credibility": 0.9,
+      "label": "权威数据平台",
+      "description": "行业公认的第三方数据聚合平台，数据经清洗和验证",
+      "sources": [
+        "CoinMarketCap (CMC)",
+        "CoinGecko",
+        "DefiLlama",
+        "RootData",
+        "Dune Analytics",
+        "Token Terminal",
+        "DeFiLlama",
+        "Messari"
+      ],
+      "usage_notes": "适用于价格、市值、TVL、融资等结构化数据"
+    },
+
+    "T3_security_audit": {
+      "level": 3,
+      "credibility": 0.95,
+      "label": "安全审计机构",
+      "description": "专业安全审计公司出具的报告，在安全维度具有最高权威性",
+      "sources": [
+        "CertiK",
+        "SlowMist 慢雾",
+        "Quantstamp",
+        "Chainalysis",
+        "PeckShield 派盾",
+        "Trail of Bits",
+        "OpenZeppelin",
+        "ConsenSys Diligence",
+        "Hacken",
+        "HashEx"
+      ],
+      "usage_notes": "安全审计结论直接用于D2评分，无需额外交叉验证"
+    },
+
+    "T4_exchange": {
+      "level": 4,
+      "credibility": 0.85,
+      "label": "主流交易所",
+      "description": "主流CEX官方发布的上线公告、充提支持等信息",
+      "sources": [
+        "Binance",
+        "Coinbase",
+        "OKX",
+        "Bybit",
+        "Kraken",
+        "Upbit",
+        "Bitget",
+        "Gate.io"
+      ],
+      "usage_notes": "交易所上线信息直接用于D4接链评估"
+    },
+
+    "T5_onchain": {
+      "level": 5,
+      "credibility": 0.9,
+      "label": "链上数据",
+      "description": "链上浏览器和链上分析工具，数据来自区块链本身，不可篡改",
+      "sources": [
+        "Etherscan",
+        "BSCScan",
+        "Polygonscan",
+        "Solscan",
+        "Sui Explorer",
+        "Aptos Explorer",
+        "Arkham Intelligence",
+        "Nansen",
+        "DexScreener",
+        "GeckoTerminal",
+        "DEX聚合器数据"
+      ],
+      "usage_notes": "链上数据为客观事实，但解读需注意上下文"
+    },
+
+    "T6_media": {
+      "level": 6,
+      "credibility": 0.7,
+      "label": "行业媒体",
+      "description": "加密行业专业媒体，有一定编辑把关但可能存在时效性偏差",
+      "sources": [
+        "The Block",
+        "CoinDesk",
+        "Decrypt",
+        "Cointelegraph",
+        "PANews",
+        "Foresight News",
+        "BlockBeats 区块律动",
+        "TechFlow 深潮",
+        "Odaily 星球日报",
+        "Binance Square"
+      ],
+      "usage_notes": "适用于叙事和事件类信息，数据类需交叉验证"
+    },
+
+    "T7_kol_community": {
+      "level": 7,
+      "credibility": 0.5,
+      "label": "KOL/社区",
+      "description": "KOL推文、社区讨论等，信息传播快但准确性参差不齐，可能带有利益相关",
+      "sources": [
+        "KOL推文 (粉丝>10万的加密KOL)",
+        "中型KOL推文 (粉丝1-10万)",
+        "Reddit r/CryptoCurrency",
+        "Reddit 相关子版块",
+        "Discord社区讨论",
+        "Telegram群组讨论",
+        "微信/推特中文社区"
+      ],
+      "usage_notes": "仅作为参考信号，必须与T1-T6交叉验证后才能作为依据",
+      "discount_factor": "KOL推文如带有 #ad #sponsored 标记或已知为付费推广，可信度降至0.3"
+    },
+
+    "T8_unverified": {
+      "level": 8,
+      "credibility": 0.3,
+      "label": "未验证来源",
+      "description": "匿名博客、未经证实的小媒体、明显营销稿件，可信度最低",
+      "sources": [
+        "匿名博客",
+        "不知名小媒体",
+        "明显营销推广稿件",
+        "无来源引用的二手信息",
+        "自动生成的聚合内容"
+      ],
+      "usage_notes": "仅作为线索参考，不可直接作为评分依据"
+    }
+  },
+
+  "confidence_markers": {
+    "confirmed": {
+      "symbol": "✅",
+      "label": "已确认",
+      "criteria": "≥2个独立T1-T5来源一致，或1个T3安全审计来源",
+      "score_impact": "可正常使用，无需折扣"
+    },
+    "partial": {
+      "symbol": "⚠️",
+      "label": "待验证",
+      "criteria": "1个T1-T5来源，或2+个T6-T7来源一致但未经T1-T5验证",
+      "score_impact": "可使用但标注，相关维度评分不超过7分"
+    },
+    "single": {
+      "symbol": "❓",
+      "label": "单一来源",
+      "criteria": "仅1个来源（任何层级），未经任何交叉验证",
+      "score_impact": "可使用但标注，相关维度评分不超过5分"
+    },
+    "unavailable": {
+      "symbol": "🚫",
+      "label": "无法获取",
+      "criteria": "数据缺失，无法从任何来源获取",
+      "score_impact": "该指标不参与评分，维度评分给保守分（不超过5分）并标注"
+    }
+  },
+
+  "conflict_resolution": {
+    "priority_order": "T1官方 > T3安全审计 > T2权威数据 > T5链上 > T4交易所 > T6媒体 > T7KOL > T8未验证",
+    "same_tier_conflict": "同层级多源数据冲突时取中位数，标注'⚠️ 多源数据冲突'",
+    "cross_tier_conflict": "高优先级来源覆盖低优先级来源，但低优先级来源的矛盾点需在报告中标注",
+    "official_vs_data": "官方声称的数据与第三方数据平台冲突时，以第三方数据平台为准（避免自我宣传偏差），但标注差异"
+  },
+
+  "source_evaluation_checklist": [
+    "来源是否可追溯（有具体URL/链接）？",
+    "信息发布时间是否在合理时效内？",
+    "来源是否有利益相关（如投资该项目）？",
+    "信息是否被至少2个独立来源确认？",
+    "来源的历史准确率如何？"
+  ],
+
+  "fallback_chains": {
+    "description": "替代源链 — 主源失败时按顺序尝试替代源。参照 config/connectors.json 的 connector_groups",
+    "market_data": "cmc_api → cmc_webfetch → coingecko_api → coingecko_webfetch → dexscreener_webfetch",
+    "funding_data": "rootdata_api → rootdata_webfetch → official_site_webfetch → media_websearch",
+    "social_data": "twitter_api_mcp → socialblade_webfetch → twitter_websearch → lunarcrush_api",
+    "onchain_data": "nansen_api → arkham_webfetch → etherscan_webfetch → dexscreener_onchain → goplus_api",
+    "security_data": "goplus_security_api → certik_webfetch → audit_websearch",
+    "narrative_data": "google_trends_webfetch + mainstream_media_websearch + ai_discussion_websearch + content_platforms_websearch（并行，非降级链）",
+    "market_maker_data": "mm_websearch → mm_rootdata → mm_onchain_lp → mm_exchange_announcement",
+    "confidence_change_on_fallback": "降级源的confidence_base通常比主源低0.1-0.2。fallback_used=true时UDO记录original_confidence"
+  },
+
+  "twitter_acquisition_guide": {
+    "description": "Twitter数据获取方案 — 回答疑问1。详细方法参照 references/data_acquisition_guide.json",
+    "challenge": "X/Twitter有严格反爬，直接WebFetch推文页面通常返回登录墙(成功率约30-40%)",
+    "methods": {
+      "follower_count": {
+        "primary": "SocialBlade WebFetch (socialblade.com/twitter/user/{handle})",
+        "confidence": 0.7,
+        "note": "第三方聚合，1-7天延迟"
+      },
+      "kol_sentiment": {
+        "primary": "WebSearch 限定 site:x.com 搜索KOL讨论",
+        "confidence": 0.5,
+        "note": "搜索引擎索引有延迟，覆盖率有限。KOL层级对照 influence_tiers.json 判定"
+      },
+      "engagement_metrics": {
+        "primary": "SocialBlade 30天互动趋势",
+        "api_enhancement": "Twitter API MCP (需配置Bearer Token, 精确数据confidence=0.95)",
+        "note": "无API时使用SocialBlade降级"
+      },
+      "bot_detection": {
+        "method": "对比follower增长曲线是否自然 + 互动率是否合理",
+        "indicators": "短时间跳跃增长=买粉, 互动率极低=僵尸粉, 重复评论=机器人"
+      }
+    },
+    "api_enhancement": {
+      "method": "配置Twitter API MCP Server",
+      "setup": "在 ~/.workbuddy/mcp.json 中配置 twitter MCP server",
+      "free_tier": "1,500 reads/month (Free), Basic $100/month",
+      "advantage": "精确数据，实时性强，可获取完整推文搜索"
+    },
+    "fallback_if_all_fail": "标注'🚫 Twitter数据无法获取'，D3流量使用其他指标降级评分，D5叙事力传播广度标注'数据不足'"
+  }
+}

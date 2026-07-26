@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.1.0",
+  "description": "Crypto/Web3 项目多维度评估数据结构定义（7维度，v1.1去掉接链维度）",
+
+  "project_basics": {
+    "description": "项目基础信息，由阶段一信息收集 + 阶段二萃取",
+    "required_fields": [
+      "project_name",
+      "ticker",
+      "website",
+      "track",
+      "tge_status",
+      "description_1line"
+    ],
+    "optional_fields": [
+      "twitter_handle",
+      "twitter_followers",
+      "discord_url",
+      "github_url",
+      "whitepaper_url",
+      "docs_url",
+      "cmc_url",
+      "coingecko_url",
+      "rootdata_url",
+      "contract_addresses",
+      "exchange_listed"
+    ],
+    "required_questions": [
+      "项目名称、代币符号、官网是否一致可验证？",
+      "项目所处赛道是否明确？有无竞品？",
+      "项目当前是否已TGE？上线了哪些交易所？"
+    ],
+    "min_sources": 2,
+    "min_confidence": 0.6
+  },
+
+  "dimensions": {
+    "D1_fundamentals": {
+      "name": "项目基本面",
+      "source": "阶段一信息收集 + 阶段二萃取",
+      "weight": 0.05,
+      "score_range": [0, 10],
+      "description": "融资质量、团队背景、赛道定位的综合评估",
+      "required_fields": [
+        "funding_total",
+        "investors_list",
+        "team_info",
+        "track_positioning"
+      ],
+      "required_questions": [
+        "融资金额和投资机构层级如何？有无 Tier1 VC 领投？",
+        "团队核心成员是否实名可验证？有无相关行业履历？",
+        "所处赛道的竞争格局如何？项目在赛道中的定位？",
+        "项目路线图是否清晰？当前进展与路线图的匹配度？"
+      ],
+      "min_sources": 2,
+      "min_confidence": 0.6
+    },
+
+    "D2_security": {
+      "name": "安全性",
+      "source_agent": "Agent3A",
+      "weight": 0.25,
+      "score_range": [0, 10],
+      "has_veto": true,
+      "description": "背景安全、代码安全、业务合规、社媒评价的综合安全评估",
+      "required_fields": [
+        "background_score",
+        "code_score",
+        "compliance_score",
+        "social_score",
+        "veto",
+        "risk_flags"
+      ],
+      "required_questions": [
+        "项目是否通过第三方安全审计？审计机构层级如何？",
+        "合约是否存在高风险权限（mint/burn/pause/blacklist）？",
+        "团队是否实名可验证？有无匿名或欺诈风险？",
+        "业务合规性如何？涉及哪些监管敏感领域？",
+        "社媒是否存在负面评价或刷量行为？"
+      ],
+      "min_sources": 3,
+      "min_confidence": 0.7,
+      "sub_dimensions": {
+        "background": "团队信息、融资信息、做市商、交易所上线",
+        "code": "第三方审计、Github fork分析、链上风险信号",
+        "compliance": "业务逻辑合规、隐私代币、社群合规、地区合规",
+        "social": "社媒负面评价、恶意刷数据行为"
+      },
+      "veto_triggers": [
+        "确认 Rug Pull 历史",
+        "合约存在后门或恶意函数",
+        "团队有欺诈记录",
+        "项目涉及违法犯罪业务"
+      ]
+    },
+
+    "D3_traffic": {
+      "name": "流量热度",
+      "source_agent": "Agent3B",
+      "weight": 0.10,
+      "score_range": [0, 10],
+      "description": "交易量、链上热度、官网流量、推特传播、排名、KOL传播的综合热度评级",
+      "required_fields": [
+        "volume_24h",
+        "cmc_rank",
+        "web_traffic",
+        "rd_score",
+        "tweet_views",
+        "kol_impact"
+      ],
+      "required_questions": [
+        "24h 成交额在同类项目中处于什么水平？",
+        "CMC 排名如何？是否在 Top 500 内？",
+        "官网月访问量和推特粉丝量级如何？",
+        "KOL 讨论度和推特互动量如何？"
+      ],
+      "min_sources": 2,
+      "min_confidence": 0.6,
+      "rating_scale": {
+        "S": "顶级热度",
+        "A": "高热度",
+        "B": "中等热度",
+        "C": "低热度",
+        "D": "极低热度"
+      },
+      "min_indicators_for_scoring": 2,
+      "meme_vs_nonmeme": {
+        "note": "Meme 和非 Meme 项目使用不同权重配置，由 Agent3B 内部知识库 W-D3-02 定义"
+      }
+    },
+
+    "D4_onchain": {
+      "name": "链上健康度",
+      "source_agent": "Agent3D",
+      "weight": 0.20,
+      "score_range": [0, 10],
+      "description": "Holder分布、交易深度、Smart Money行为、风险信号的综合链上健康评估",
+      "required_fields": [
+        "holder_concentration",
+        "smart_money_signal",
+        "liquidity_depth",
+        "contract_risk"
+      ],
+      "required_questions": [
+        "Top10 持仓占比如何？Gini 系数是否显示过度集中？",
+        "Smart Money 是在流入还是流出？信号方向如何？",
+        "DEX 流动性深度如何？能否支撑正常交易？",
+        "合约权限（mint/burn/pause）是否存在风险？有无 Rug Pull 预警？",
+        "交易自然度如何？是否存在洗盘交易模式？"
+      ],
+      "min_sources": 2,
+      "min_confidence": 0.7,
+      "risk_levels": {
+        "green": "🟢 low — 链上健康，无明显风险",
+        "yellow": "🟡 medium — 存在需关注的风险信号",
+        "red": "🔴 high — 严重风险，建议谨慎"
+      }
+    },
+
+    "D5_narrative": {
+      "name": "叙事力",
+      "source_agent": "Agent3E (E1)",
+      "weight": 0.15,
+      "score_range": [0, 10],
+      "description": "核心叙事定位、传播广度(Crypto原生+Web2)、绑定强度、生命周期、催化事件。Web2传播检测参照 references/data_acquisition_guide.json 的 web2_narrative_propagation 章节",
+      "required_fields": [
+        "core_narrative",
+        "spread_breadth",
+        "binding_strength",
+        "lifecycle_stage",
+        "catalyst_events",
+        "web2_propagation_score"
+      ],
+      "web2_propagation_subfields": {
+        "search_trends": "Google Trends/百度指数搜索热度趋势",
+        "mainstream_media_count": "非Crypto主流媒体报道数量(Bloomberg/Reuters/Forbes/36氪等)",
+        "ai_discussion_score": "AI/Agent生态讨论度(ChatGPT/Claude/Perplexity/AutoGPT相关)",
+        "bot_activity_inverse": "社交机器人活动反向指标(机器人越多分数越低)",
+        "content_platform_count": "深度内容数量(Medium/Substack/Mirror/知乎/微信公众号)",
+        "video_podcast_count": "YouTube评测视频和播客讨论数量"
+      },
+      "required_questions": [
+        "项目的核心叙事是什么？是否是赛道引领者？",
+        "叙事传播广度如何？几种语言/地区在讨论？KOL 参与层级（对照 influence_tiers.json）？",
+        "项目与叙事核心人物/事件的绑定强度如何？T0/T1级KOL是否提及？",
+        "叙事处于什么生命周期阶段？正在爆发、已充分定价还是退潮？",
+        "近期有无明确催化事件？",
+        "Web2传播：搜索引擎热度趋势如何？主流媒体是否有报道？",
+        "AI/Agent生态是否讨论该项目？（对AI赛道项目尤为重要）",
+        "是否存在社交机器人刷量迹象？真人讨论 vs 机器人活动的比例如何？"
+      ],
+      "scoring_formula": "D5_score = (crypto_native_score × 0.6) + (web2_propagation_score × 0.4)。AI赛道项目 ai_discussion 权重提升至25%。",
+      "min_sources": 2,
+      "min_confidence": 0.5
+    },
+
+    "D6_capital": {
+      "name": "资金力",
+      "source_agent": "Agent3E (E2)",
+      "weight": 0.15,
+      "score_range": [0, 10],
+      "description": "已上线项目看资金流入×交易活跃度×价格动能×做市商；未上线项目看融资机构层级×融资规模。资金流入6维测量参照 references/data_acquisition_guide.json 的 capital_inflow_methodology 章节",
+      "required_fields_tge": [
+        "capital_inflow_score",
+        "trading_activity",
+        "price_momentum",
+        "market_maker_tier"
+      ],
+      "capital_inflow_6d": {
+        "d1_exchange_net_flow": "交易所净流入/流出（净流出=囤币信号+，净流入=卖压-）",
+        "d2_volume_trend": "7d/30d平均交易量比值（>1.5=资金参与度上升+）",
+        "d3_price_vs_benchmark": "项目涨幅 vs BTC/ETH同期涨幅（超额收益alpha）",
+        "d4_stablecoin_pairing": "稳定币交易对占比（>60%=真实新资金+）",
+        "d5_open_interest": "合约未平仓量趋势（OI上升=新资金入场+）",
+        "d6_smart_money_net": "Smart Money净持仓变化（净买入=知情者看好+）"
+      },
+      "required_fields_pre_tge": [
+        "investor_tier",
+        "funding_scale",
+        "market_maker_tier"
+      ],
+      "required_questions": [
+        "若已TGE：资金流入6维信号如何？（交易所净流、量比、alpha、稳定币占比、OI、Smart Money）",
+        "若已TGE：做市商是谁？参照 influence_tiers.json 的 market_maker_tiers 判定层级",
+        "若未TGE：融资机构层级如何？有无 Tier1 VC？参照 influence_tiers.json 的 vc_institution_tiers",
+        "若未TGE：融资规模？做市商情况？"
+      ],
+      "capital_inflow_calculation": "capital_inflow_score = (d1+d2+d3+d4+d5+d6 signals) / available_dims × 10。少于2维有数据→保守分5+标注🚫",
+      "min_sources": 2,
+      "min_confidence": 0.6
+    },
+
+    "D7_market": {
+      "name": "市场表现",
+      "source_agent": "Agent3E (E3)",
+      "weight": 0.10,
+      "score_range": [0, 10],
+      "description": "Meme类看链上数据健康度；非Meme类看产品数据+用户+合作",
+      "required_fields_meme": [
+        "onchain_health_summary"
+      ],
+      "required_fields_non_meme": [
+        "product_status",
+        "user_metrics",
+        "partnerships"
+      ],
+      "required_questions": [
+        "产品是否已上线？处于什么阶段？",
+        "用户数据如何？DAU/MAU/TVL 等核心指标趋势？",
+        "有无重要合作伙伴或生态合作？",
+        "Meme类：链上数据健康度如何？"
+      ],
+      "min_sources": 2,
+      "min_confidence": 0.5
+    }
+  },
+
+  "total_score": {
+    "description": "总评分Agent输出结构",
+    "calculation": "final_score = D1×0.05 + D2×0.25 + D3×0.10 + D4×0.20 + D5×0.15 + D6×0.15 + D7×0.10 — 若 D2 veto=true 则 final_score 上限为 2.0",
+    "rating_scale": {
+      "S": "≥ 8.0 — 顶级项目，强烈关注",
+      "A": "≥ 6.5 — 优秀项目，值得关注",
+      "B": "≥ 5.0 — 中等项目，持续观察",
+      "C": "≥ 3.5 — 一般项目，谨慎对待",
+      "D": "≥ 2.0 — 较弱项目，高风险",
+      "F": "< 2.0 — 否决或极高风险，建议回避"
+    },
+    "output_fields": [
+      "final_score",
+      "rating",
+      "dimension_scores",
+      "weights",
+      "veto_triggered",
+      "veto_source",
+      "cross_dimension_insights",
+      "swot",
+      "recommendation",
+      "data_completeness",
+      "one_line"
+    ]
+  },
+
+  "confidence_markers": {
+    "confirmed": "✅已确认 — ≥2个独立高可信来源一致",
+    "partial": "⚠️待验证 — 1个高可信来源或多中等来源",
+    "single": "❓单一来源 — 仅1个来源，未经交叉验证",
+    "unavailable": "🚫无法获取 — 数据缺失"
+  },
+
+  "data_handling": {
+    "description": "数据降级/阻断策略 — 参照 config/connectors.json 的 global_settings.data_handling_strategy",
+    "critical_data": {
+      "fields": ["project_name", "ticker", "contract_address (TGE项目)", "official_website", "track"],
+      "insufficient_behavior": "阻断评估，输出已获取信息和阻断原因"
+    },
+    "non_critical_data": {
+      "insufficient_behavior": "标注🚫，该指标不参与评分，维度评分≤5并标注数据缺失"
+    },
+    "auto_source_switch": {
+      "behavior": "主源失败→自动尝试同组fallback connector",
+      "logging": "UDO记录 fallback_used, original_confidence, source_connector"
+    },
+    "gap_logging": {
+      "requirement": "完整记录缺失项、降级使用、置信度变化",
+      "report_section": "阶段五报告'信息缺口与数据质量'章节必须包含降级使用记录"
+    }
+  }
+}

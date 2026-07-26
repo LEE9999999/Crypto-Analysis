@@ -1,0 +1,382 @@
+{
+  "version": "1.1.0",
+  "description": "7维度打分锚点 — 所有评分使用统一坐标系，确保跨项目可比。每个维度提供1-10分的定性描述和参照案例。（v1.1去掉接链维度）",
+
+  "scoring_principles": {
+    "rule_1": "评分基于证据，不是感觉。每个分数必须可追溯到具体数据点。",
+    "rule_2": "使用锚点定位法：先找到最接近的锚点描述，再在区间内微调。",
+    "rule_3": "数据缺失时给保守分（不超过5分），并标注'数据缺失'。",
+    "rule_4": "评分保留1位小数，不取整数。",
+    "rule_5": "跨项目可比性优先于单项目精确性。"
+  },
+
+  "anchors": {
+    "D1_fundamentals": {
+      "name": "项目基本面",
+      "weight": 0.05,
+      "scale": [
+        {
+          "score": "9-10",
+          "label": "顶级",
+          "description": "Tier1 VC（a16z/Paradigm/Sequoia）领投 $50M+，团队核心成员来自顶级科技公司或有成功创业退出，赛道龙头定位清晰，路线图执行率>80%",
+          "reference": ["Polygon (a16z领投, Binance上线)", "Sui (a16z, Jump Crypto)"]
+        },
+        {
+          "score": "7-8",
+          "label": "优秀",
+          "description": "知名VC领投 $10-50M，团队可验证有行业履历，赛道前列定位，路线图清晰",
+          "reference": ["中等生态项目，有2-3家知名VC背书"]
+        },
+        {
+          "score": "5-6",
+          "label": "中等",
+          "description": "有融资 $3-10M，团队部分可验证，赛道中游定位，有基本路线图",
+          "reference": ["大多数种子轮项目"]
+        },
+        {
+          "score": "3-4",
+          "label": "较弱",
+          "description": "小额融资 <$3M 或融资不明，团队信息有限，赛道拥挤或定位不清",
+          "reference": ["早期或信息不透明项目"]
+        },
+        {
+          "score": "1-2",
+          "label": "极弱",
+          "description": "无融资记录或团队匿名，无清晰赛道定位，无路线图或路线图不可信",
+          "reference": ["信息极度匮乏的项目"]
+        },
+        {
+          "score": "0",
+          "label": "无法评估",
+          "description": "基础信息完全不可获取，无法进行任何评估"
+        }
+      ]
+    },
+
+    "D2_security": {
+      "name": "安全性",
+      "weight": 0.25,
+      "scale": [
+        {
+          "score": "9-10",
+          "label": "顶级安全",
+          "description": "顶级审计机构（CertiK/Quantstamp/Trail of Bits）审计通过且无高危发现，团队全实名可验证，Tier1 VC背书，合约无高风险权限，无任何负面社媒信号",
+          "reference": ["Chainlink", "Aave"]
+        },
+        {
+          "score": "7-8",
+          "label": "良好安全",
+          "description": "审计通过（中低危发现已修复），团队可验证，融资记录清晰，合约权限合理",
+          "reference": ["主流DeFi项目"]
+        },
+        {
+          "score": "5-6",
+          "label": "基本安全",
+          "description": "基本审计或审计不完整，团队部分可验证，无重大风险信号但存在待改进项",
+          "reference": ["中等规模项目"]
+        },
+        {
+          "score": "3-4",
+          "label": "风险较高",
+          "description": "无审计或审计不完整，团队匿名或半匿名，存在中等风险信号（如合约权限过大、社媒有负面讨论）",
+          "reference": ["需警惕的项目"]
+        },
+        {
+          "score": "1-2",
+          "label": "高风险",
+          "description": "无审计 + 团队匿名 + 多个风险信号（合约高风险权限、社媒负面、链上异常）",
+          "reference": ["高风险项目"]
+        },
+        {
+          "score": "0",
+          "label": "否决/极高风险",
+          "description": "触发一票否决：确认Rug Pull历史、合约后门、团队欺诈记录、违法犯罪业务",
+          "reference": ["已知欺诈项目"]
+        }
+      ],
+      "veto_note": "veto=true 时强制评分为0，且总评分上限2.0",
+      "halve_note": "halve=true 时该维度评分减半"
+    },
+
+    "D3_traffic": {
+      "name": "流量热度",
+      "weight": 0.10,
+      "scale": [
+        {
+          "score": "9-10",
+          "label": "S级",
+          "description": "CMC Top 50，24h成交额 >$500M，官网月访问 >5M，推特粉丝 >50万，KOL广泛讨论",
+          "reference": ["Bitcoin", "Ethereum", "Solana"]
+        },
+        {
+          "score": "7-8",
+          "label": "A级",
+          "description": "CMC Top 200，24h成交额 $50-500M，官网月访问 1-5M，推特粉丝 10-50万",
+          "reference": ["知名Layer1/Layer2项目"]
+        },
+        {
+          "score": "5-6",
+          "label": "B级",
+          "description": "CMC Top 500，24h成交额 $5-50M，官网月访问 10万-1M，推特粉丝 2-10万",
+          "reference": ["中等热度项目"]
+        },
+        {
+          "score": "3-4",
+          "label": "C级",
+          "description": "CMC Top 1000或未上榜，24h成交额 $0.5-5M，官网月访问 1-10万，推特粉丝 <2万",
+          "reference": ["低关注度项目"]
+        },
+        {
+          "score": "1-2",
+          "label": "D级",
+          "description": "排名极低或未上榜，成交额 <$0.5M，流量极低，几乎无KOL讨论",
+          "reference": ["几乎无人关注的项目"]
+        },
+        {
+          "score": "0",
+          "label": "无流量",
+          "description": "完全无交易数据、无流量、无社媒存在"
+        }
+      ],
+      "min_indicators": "有效参评指标 ≤1 个时禁止评分，执行终止态"
+    },
+
+    "D4_onchain": {
+      "name": "链上健康度",
+      "weight": 0.20,
+      "scale": [
+        {
+          "score": "9-10",
+          "label": "🟢 极健康",
+          "description": "Top10持仓 <15%，Smart Money持续流入，DEX流动性充裕，合约无风险权限，交易自然度高",
+          "reference": ["成熟蓝筹项目"]
+        },
+        {
+          "score": "7-8",
+          "label": "🟢 健康",
+          "description": "Top10持仓 15-25%，Smart Money中性或小幅流入，流动性良好，合约低风险，无明显洗盘",
+          "reference": ["健康的中型项目"]
+        },
+        {
+          "score": "5-6",
+          "label": "🟡 中等",
+          "description": "Top10持仓 25-40%，Smart Money中性，流动性尚可，合约存在可接受的风险权限，交易基本自然",
+          "reference": ["一般项目"]
+        },
+        {
+          "score": "3-4",
+          "label": "🟡 需关注",
+          "description": "Top10持仓 40-60%，Smart Money流出迹象，流动性不足，合约有警告级权限，存在洗盘迹象",
+          "reference": ["需警惕的项目"]
+        },
+        {
+          "score": "1-2",
+          "label": "🔴 高风险",
+          "description": "Top10持仓 >60%，Smart Money大幅流出，流动性差，合约danger级权限，明显洗盘或异常交易",
+          "reference": ["高风险项目"]
+        },
+        {
+          "score": "0",
+          "label": "🔴 极高风险",
+          "description": "确认Rug Pull信号，合约存在后门，严重洗盘，资金即将或已被抽走"
+        }
+      ]
+    },
+
+    "D5_narrative": {
+      "name": "叙事力",
+      "weight": 0.15,
+      "scoring_formula": "D5_score = (crypto_native_score × 0.6) + (web2_propagation_score × 0.4)。AI赛道项目ai_discussion权重提升至25%",
+      "web2_propagation_weights": {
+        "search_trends": 0.20,
+        "mainstream_media": 0.25,
+        "ai_discussion": 0.15,
+        "bot_activity_inverse": 0.15,
+        "content_platforms": 0.15,
+        "video_podcast": 0.10
+      },
+      "scale": [
+        {
+          "score": "9-10",
+          "label": "叙事引领+出圈",
+          "description": "项目是核心叙事引领者，T0/T1 KOL广泛讨论(对照influence_tiers.json)，全球多语言传播，Web2出圈：≥3家主流媒体报道+Google Trends搜索量突破历史峰值+YouTube≥10个评测视频+AI生态广泛讨论，叙事处于爆发上升期",
+          "reference": ["ChatGPT发布时的AI代币", "DeFi Summer的Uniswap"]
+        },
+        {
+          "score": "7-8",
+          "label": "强叙事+有传播",
+          "description": "强叙事关联，T1 KOL讨论，多地区传播，有1-2家主流媒体报道或Google Trends上升趋势，有催化事件，叙事处于上升或高峰期"
+        },
+        {
+          "score": "5-6",
+          "label": "有叙事+圈层内",
+          "description": "有清晰叙事定位，T2 KOL讨论，区域传播，Web2传播有限（仅Crypto媒体+少量内容平台），叙事处于稳定期",
+          "reference": ["中等叙事项目"]
+        },
+        {
+          "score": "3-4",
+          "label": "叙事弱+传播低",
+          "description": "叙事模糊或跟风，讨论度低，无Web2传播，大量T3/机器人讨论可能是paid shilling，叙事处于退潮期"
+        },
+        {
+          "score": "1-2",
+          "label": "无叙事+无传播",
+          "description": "无清晰叙事定位，几乎无讨论，与当前市场热点无关联，Web2完全无传播"
+        },
+        {
+          "score": "0",
+          "label": "负面叙事",
+          "description": "被市场证伪或与负面事件强关联的叙事"
+        }
+      ]
+    },
+
+    "D6_capital": {
+      "name": "资金力",
+      "weight": 0.15,
+      "capital_inflow_methodology": "6维资金流入测量，参照 references/data_acquisition_guide.json。capital_inflow_score = 6维信号均值，少于2维有数据→保守分5",
+      "scale_tge": [
+        {
+          "score": "9-10",
+          "label": "资金强劲",
+          "description": "capital_inflow_6d中≥4维强正面：交易所持续净流出(囤币)+量比>1.5+alpha>20%+稳定币占比>60%+OI上升+Smart Money净买入。Tier1做市商(对照influence_tiers.json market_maker_tiers)",
+          "checklist": "d1_exchange_net_flow=strong_positive, d3_price_vs_benchmark=alpha>20%, d6_smart_money_net=net_buy"
+        },
+        {
+          "score": "7-8",
+          "label": "资金良好",
+          "description": "capital_inflow_6d中≥3维正面：稳定资金流入+交易活跃+价格趋势向上。Tier1/Tier2做市商",
+          "checklist": "d2_volume_trend>1.0, d3_alpha>0, d4_stablecoin>40%"
+        },
+        {
+          "score": "5-6",
+          "label": "资金中性",
+          "description": "capital_inflow_6d信号混合：流入流出基本平衡+交易活跃度一般+价格震荡。做市商情况不明或Tier2/3"
+        },
+        {
+          "score": "3-4",
+          "label": "资金偏弱",
+          "description": "capital_inflow_6d中≥3维负面：资金净流出+交易量下降+价格下行。无专业做市或做市商撤出"
+        },
+        {
+          "score": "1-2",
+          "label": "资金撤离",
+          "description": "capital_inflow_6d中≥4维强负面：大幅资金流出+交易量萎缩+alpha<-10%+Smart Money大幅卖出。做市商撤出"
+        }
+      ],
+      "scale_pre_tge": [
+        {
+          "score": "9-10",
+          "label": "顶级融资",
+          "description": "Tier1 VC（a16z/Paradigm/Sequoia）领投 $50M+，多轮后续融资",
+          "reference": ["Polygon", "Sui"]
+        },
+        {
+          "score": "7-8",
+          "label": "优质融资",
+          "description": "知名VC领投 $10-50M，投资阵容强",
+          "reference": ["优质种子轮项目"]
+        },
+        {
+          "score": "5-6",
+          "label": "中等融资",
+          "description": "有融资 $3-10M，投资方可验证但非顶级",
+          "reference": ["一般种子轮项目"]
+        },
+        {
+          "score": "3-4",
+          "label": "弱融资",
+          "description": "小额融资 <$3M 或融资信息不透明",
+          "reference": ["早期项目"]
+        },
+        {
+          "score": "1-2",
+          "label": "无融资",
+          "description": "无融资记录或融资不可验证"
+        }
+      ]
+    },
+
+    "D7_market": {
+      "name": "市场表现",
+      "weight": 0.10,
+      "scale_non_meme": [
+        {
+          "score": "9-10",
+          "label": "产品成熟",
+          "description": "产品已上线且成熟，大量真实用户（DAU>1万或TVL>$100M），重要生态合作，数据持续增长",
+          "reference": ["Uniswap", "Aave"]
+        },
+        {
+          "score": "7-8",
+          "label": "产品上线",
+          "description": "产品已上线，有用户基础（DAU 1000-1万或TVL $10-100M），有合作伙伴",
+          "reference": ["中等DeFi项目"]
+        },
+        {
+          "score": "5-6",
+          "label": "早期产品",
+          "description": "产品测试版或主网早期，少量早期用户，初步合作",
+          "reference": ["刚上线项目"]
+        },
+        {
+          "score": "3-4",
+          "label": "MVP阶段",
+          "description": "仅有MVP或demo，无真实用户数据",
+          "reference": ["开发中项目"]
+        },
+        {
+          "score": "1-2",
+          "label": "概念阶段",
+          "description": "仅有白皮书或概念，无任何产品",
+          "reference": ["早期概念项目"]
+        },
+        {
+          "score": "0",
+          "label": "无产品",
+          "description": "无产品且无开发迹象，或产品已废弃"
+        }
+      ],
+      "scale_meme": [
+        {
+          "score": "9-10",
+          "label": "链上极健康",
+          "description": "Holder分散，交易自然，流动性深，无异常信号"
+        },
+        {
+          "score": "7-8",
+          "label": "链上健康",
+          "description": "Holder较分散，交易基本自然，流动性良好"
+        },
+        {
+          "score": "5-6",
+          "label": "链上中等",
+          "description": "Holder集中度中等，存在一些异常但无严重风险"
+        },
+        {
+          "score": "3-4",
+          "label": "链上需关注",
+          "description": "Holder集中，流动性不足，有洗盘或异常交易迹象"
+        },
+        {
+          "score": "1-2",
+          "label": "链上高风险",
+          "description": "Holder高度集中，严重异常交易，流动性极差"
+        }
+      ]
+    }
+  },
+
+  "rating_conversion": {
+    "description": "加权总分 → 评级转换",
+    "scale": [
+      { "rating": "S", "min_score": 8.0, "label": "顶级项目，强烈关注" },
+      { "rating": "A", "min_score": 6.5, "label": "优秀项目，值得关注" },
+      { "rating": "B", "min_score": 5.0, "label": "中等项目，持续观察" },
+      { "rating": "C", "min_score": 3.5, "label": "一般项目，谨慎对待" },
+      { "rating": "D", "min_score": 2.0, "label": "较弱项目，高风险" },
+      { "rating": "F", "min_score": 0.0, "label": "否决或极高风险，建议回避" }
+    ],
+    "veto_override": "D2 veto=true 时，无论总分多少，评级强制为F"
+  }
+}

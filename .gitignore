@@ -1,0 +1,18 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets - never commit API keys
+*.env
+.env.local
+secrets.json
+
+# Reports (generated outputs)
+reports/
+*.log

@@ -1,0 +1,182 @@
+{
+  "version": "1.1.0",
+  "description": "跨维度关联规则 — 当多个维度的分析结果出现特定组合时，触发深度跨维度分析（v1.1去掉接链规则，6条）",
+  "total_rules": 6,
+
+  "rules": [
+    {
+      "id": "R001",
+      "name": "安全否决传导",
+      "trigger_type": "unique_feature_detection",
+      "trigger": {
+        "condition": "D2_security.veto == true",
+        "fields": ["veto", "veto_reason"]
+      },
+      "importance": "critical",
+      "skip_condition": "D2_security 未执行或 veto 字段缺失",
+      "analysis_framework": {
+        "objective": "安全一票否决触发时，无论其他维度评分如何，必须执行风险传导分析",
+        "sub_questions": [
+          "否决原因具体是什么？是否影响项目存续？",
+          "否决风险是否可能传导至链上（如合约被利用导致资金损失）？",
+          "否决风险是否可能传导至流量和叙事（如负面舆情导致用户撤离）？",
+          "其他维度的正面信号是否足以抵消否决风险？（答案应是否定的）",
+          "投资者应采取什么紧急行动？"
+        ],
+        "expected_output": "否决风险传导路径图 + 紧急风险提示 + 最终评分强制上限说明"
+      },
+      "action": {
+        "score_cap": 2.0,
+        "rating_floor": "F",
+        "recommendation_override": "avoid",
+        "report_flag": "🔴 VETO_TRIGGERED"
+      }
+    },
+
+    {
+      "id": "R002",
+      "name": "安全-链上风险共振",
+      "trigger_type": "entity_overlap",
+      "trigger": {
+        "condition": "D2_security.risk_flags 包含 'no_audit' 或 'contract_risk' AND D4_onchain.contract_risk == 'warning' 或 'danger'",
+        "fields": ["risk_flags", "contract_risk"]
+      },
+      "importance": "high",
+      "skip_condition": "D2 或 D4 未执行，或两者均为低风险",
+      "analysis_framework": {
+        "objective": "安全审计缺失与链上合约风险共振时，评估合约被利用的综合风险",
+        "sub_questions": [
+          "无审计的具体原因是什么？是项目方主动回避还是审计中发现问题未修复？",
+          "链上合约风险信号具体指向什么权限？mint/pause/blacklist？",
+          "Holder 集中度与合约权限组合下，Rug Pull 的可行性如何？",
+          "是否存在近期异常交易模式与合约风险共振的迹象？",
+          "投资者面临的最大下行风险场景是什么？"
+        ],
+        "expected_output": "合约风险综合评级（上调1-2级）+ Rug Pull 可行性评估 + 风险缓解建议"
+      },
+      "action": {
+        "score_adjustment": "D2 和 D4 综合风险等级上调1级",
+        "report_flag": "⚠️ SAFETY_ONCHAIN_RESONANCE"
+      }
+    },
+
+    {
+      "id": "R003",
+      "name": "叙事-流量背离",
+      "trigger_type": "triangulation",
+      "trigger": {
+        "condition": "D5_narrative.score >= 7 AND D3_traffic.score < 4",
+        "fields": ["score", "score"]
+      },
+      "importance": "medium",
+      "skip_condition": "项目未TGE（流量数据天然偏低不构成背离），或任一维度未执行",
+      "analysis_framework": {
+        "objective": "叙事热度高但实际流量低，评估叙事是否人为制造或存在传播瓶颈",
+        "sub_questions": [
+          "叙事讨论主要集中在哪些渠道？是否仅限于小圈子？",
+          "KOL 讨论是自发还是有组织推广迹象？",
+          "官网流量和推特互动量为何低于叙事热度预期？",
+          "是否存在'买叙事'而非'用产品'的现象？",
+          "叙事热度能否转化为实际流量和用户？转化障碍是什么？"
+        ],
+        "expected_output": "叙事真实性评估 + 传播瓶颈分析 + 叙事可持续性判断"
+      },
+      "action": {
+        "report_flag": "⚠️ NARRATIVE_TRAFFIC_DIVERGENCE",
+        "insight_type": "narrative_authenticity"
+      }
+    },
+
+    {
+      "id": "R004",
+      "name": "资金-链上Smart Money背离",
+      "trigger_type": "triangulation",
+      "trigger": {
+        "condition": "D6_capital.score >= 7 AND D4_onchain.smart_money_signal == 'negative'",
+        "fields": ["score", "smart_money_signal"]
+      },
+      "importance": "high",
+      "skip_condition": "项目未TGE（无Smart Money数据），或任一维度未执行",
+      "analysis_framework": {
+        "objective": "资金面看好但Smart Money在流出，评估知情者是否在退出",
+        "sub_questions": [
+          "Smart Money 流出的具体规模和持续时间？是个别地址还是群体行为？",
+          "融资资金是否已实际到账？还是仅为公告？",
+          "新资金流入是否真实？还是主要是存量资金循环？",
+          "Smart Money 流出与融资利好之间是否存在时间差？",
+          "这是否构成'利好出货'的经典模式？"
+        ],
+        "expected_output": "Smart Money 流出详细分析 + 资金真实性评估 + 潜在退出信号预警"
+      },
+      "action": {
+        "score_adjustment": "D6 资金力评分考虑下调1-2分",
+        "report_flag": "🔴 CAPITAL_SMARTMONEY_DIVERGENCE",
+        "insight_type": "informed_exit_signal"
+      }
+    },
+
+    {
+      "id": "R005",
+      "name": "融资规模-安全验证缺口",
+      "trigger_type": "triangulation",
+      "trigger": {
+        "condition": "D1_fundamentals.funding_total >= '$10M' AND D2_security.code_score < 5",
+        "fields": ["funding_total", "code_score"]
+      },
+      "importance": "high",
+      "skip_condition": "融资信息不可获取或安全评估未执行",
+      "analysis_framework": {
+        "objective": "大额融资但代码安全不足，评估尽调缺口和潜在风险",
+        "sub_questions": [
+          "大额融资的投资方是否进行了技术尽调？为何安全审计不足？",
+          "融资资金是否应优先用于安全审计？项目方的资金分配优先级如何？",
+          "投资方的品牌信誉是否在此存在风险？",
+          "是否存在'融资驱动'而非'产品驱动'的迹象？",
+          "代码安全不足是否影响项目长期可持续性？"
+        ],
+        "expected_output": "尽调缺口分析 + 资金使用优先级评估 + 投资方信誉风险判断"
+      },
+      "action": {
+        "report_flag": "⚠️ FUNDING_SECURITY_GAP",
+        "insight_type": "due_diligence_gap"
+      }
+    },
+
+    {
+      "id": "R006",
+      "name": "流量-链上健康共振",
+      "trigger_type": "triangulation",
+      "trigger": {
+        "condition": "D3_traffic.score >= 7 AND D4_onchain.score >= 7",
+        "fields": ["score", "score"]
+      },
+      "importance": "medium",
+      "skip_condition": "任一维度未执行或项目未TGE",
+      "analysis_framework": {
+        "objective": "流量与链上健康双高，评估项目是否具有真实增长基础",
+        "sub_questions": [
+          "流量增长是否伴随链上真实用户（地址数、交易数）增长？",
+          "交易量中自然交易 vs 洗盘交易的比例如何？",
+          "Holder 分布是否随流量增长趋于分散（健康信号）？",
+          "这种共振是可持续的还是存在泡沫风险？",
+          "项目是否有足够的基础设施支撑持续增长？"
+        ],
+        "expected_output": "增长真实性评估 + 可持续性判断 + 正面信号确认"
+      },
+      "action": {
+        "report_flag": "✅ TRAFFIC_ONCHAIN_RESONANCE",
+        "insight_type": "authentic_growth",
+        "score_adjustment": "可考虑总分微调上调0.3-0.5"
+      }
+    }
+  ],
+
+  "execution_rules": {
+    "evaluation_order": "按 importance 降序执行: critical > high > medium > low",
+    "max_rules_per_project": 6,
+    "insight_min_length": 50,
+    "insight_max_length": 200,
+    "output_format": "每条触发的规则输出: 规则ID + 规则名称 + 触发条件确认 + 分析结论 + 影响评估",
+    "no_trigger_behavior": "若无规则触发，输出'本轮评估未触发跨维度关联规则'并直接进入报告渲染"
+  }
+}
