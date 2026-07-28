@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "description": "7维度打分锚点 — 所有评分使用统一坐标系，确保跨项目可比。每个维度提供1-10分的定性描述和参照案例。（v1.1去掉接链维度）",
+  "version": "1.3.0",
+  "description": "8维度打分锚点 — 所有评分使用统一坐标系，确保跨项目可比。每个维度提供1-10分的定性描述和参照案例。（v1.3新增D8技术面分析维度）",
 
   "scoring_principles": {
     "rule_1": "评分基于证据，不是感觉。每个分数必须可追溯到具体数据点。",
@@ -143,7 +143,7 @@
 
     "D4_onchain": {
       "name": "链上健康度",
-      "weight": 0.20,
+      "weight": 0.15,
       "scale": [
         {
           "score": "9-10",
@@ -233,7 +233,7 @@
 
     "D6_capital": {
       "name": "资金力",
-      "weight": 0.15,
+      "weight": 0.10,
       "capital_inflow_methodology": "6维资金流入测量，参照 references/data_acquisition_guide.json。capital_inflow_score = 6维信号均值，少于2维有数据→保守分5",
       "scale_tge": [
         {
@@ -364,6 +364,55 @@
           "description": "Holder高度集中，严重异常交易，流动性极差"
         }
       ]
+    },
+
+    "D8_technical": {
+      "name": "技术面分析",
+      "weight": 0.10,
+      "scoring_method": "由 scripts/technical_analysis.py 自动计算。7个方向性指标(RSI/MACD/EMA/BB/SuperTrend/KDJ/OBV/VWAP)多空计数 + ATR波动率修正。指标解读参照 references/technical_indicators_guide.json",
+      "scale": [
+        {
+          "score": "9-10",
+          "label": "强烈看涨",
+          "description": ">=85%指标看涨(7/8或6/7)，ATR低波动。RSI超卖反弹+MACD金叉+EMA上升+SuperTrend买入+OBV累积。多指标共振看涨，技术面极强",
+          "indicator_pattern": "bullish >= 85%"
+        },
+        {
+          "score": "7-8",
+          "label": "看涨",
+          "description": "60-85%指标看涨(5/8或4/7)。多数指标确认上升趋势，个别指标中性。技术面偏多",
+          "indicator_pattern": "bullish 60-85%"
+        },
+        {
+          "score": "5-6",
+          "label": "中性",
+          "description": "40-60%指标看涨(3-4/8)。多空信号混合，趋势不明。需结合其他维度判断方向",
+          "indicator_pattern": "bullish 40-60%"
+        },
+        {
+          "score": "3-4",
+          "label": "看跌",
+          "description": "20-40%指标看涨(2/8)。多数指标确认下降趋势，个别指标中性。技术面偏空",
+          "indicator_pattern": "bullish 20-40%"
+        },
+        {
+          "score": "1-2",
+          "label": "强烈看跌",
+          "description": "<20%指标看涨(0-1/8)，ATR高波动。RSI超买回调+MACD死叉+EMA下降+SuperTrend卖出+OBV分发。多指标共振看跌，技术面极弱",
+          "indicator_pattern": "bullish < 20%"
+        },
+        {
+          "score": "0",
+          "label": "无法计算",
+          "description": "OHLCV数据完全不可获取，无法计算任何技术指标。标注数据缺失"
+        }
+      ],
+      "atr_modifier": {
+        "high_volatility": "评分-0.5 (ATR > 价格5%)",
+        "low_volatility": "评分+0.2 (ATR < 价格2%)",
+        "moderate_volatility": "无修正"
+      },
+      "volume_missing_note": "当volume不可用时，directional指标从8个降为6个，评分逻辑自动适配，不影响整体评分可靠性"
     }
   },
 

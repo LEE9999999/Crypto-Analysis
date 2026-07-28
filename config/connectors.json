@@ -209,8 +209,8 @@
             "credential_url": "https://www.rootdata.com/Api"
           },
           "acquisition": "mcp",
-          "mcp_command": "uv run server.py (本地Python服务, 需先clone: https://github.com/jincai/rootdata-mcp-server)",
-          "mcp_server_path": "<用户自行clone的路径, 如 ~/mcp-servers/rootdata-mcp-server>",
+          "mcp_command": "uv run server.py (本地Python服务)",
+          "mcp_server_path": "~/mcp-servers/rootdata-mcp-server",
           "mcp_tools": [
             "search — 根据关键词搜索项目/VC/人物的简要信息",
             "get_project — 根据项目ID获取项目的详细信息(融资/团队/赛道)",
@@ -836,6 +836,78 @@
           "confidence_base": 0.7
         }
       ]
+    },
+
+    "technical_data": {
+      "description": "技术面分析数据 — OHLCV K线数据和技术指标计算，服务D8技术面分析维度",
+      "data_types": ["ohlcv", "technical_indicators", "rsi", "macd", "ema", "bollinger_bands", "supertrend", "kdj", "atr", "obv", "vwap"],
+      "cross_validation_required": true,
+      "cross_validation_min_sources": 2,
+
+      "connectors": [
+        {
+          "id": "coingecko_ohlcv_mcp",
+          "name": "CoinGecko OHLCV (via MCP)",
+          "enabled": true,
+          "priority": 1,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "coingecko",
+            "requires": "CoinGecko Pro API Key (与market_data组共用)"
+          },
+          "acquisition": "mcp",
+          "mcp_tools": [
+            "coins.ohlc.get(id, days, vs_currency, interval) — OHLC数据 [timestamp, open, high, low, close]",
+            "coins.marketChart.get(id, days, vs_currency, interval) — prices + total_volumes (用于合并OHLCV)",
+            "onchain.networks.tokens.ohlcv.getTimeframe(network, token_address, timeframe) — DEX代币完整OHLCV"
+          ],
+          "data_flow": {
+            "step_1_cex": "coins.ohlc.get(id, '90', 'usd', 'daily') + coins.marketChart.get(id, '90', 'usd', 'daily') → 按timestamp合并为OHLCV",
+            "step_2_dex": "onchain.networks.tokens.ohlcv.getTimeframe(network, token_address, 'day', limit=100) → 直接获取完整OHLCV",
+            "step_3": "合并后的OHLCV写入临时JSON文件: {symbol, interval, candles: [{timestamp, open, high, low, close, volume}]}",
+            "step_4": "运行 scripts/technical_analysis.py --input <temp_ohlcv.json> 计算8个Tier 1指标",
+            "step_5": "读取脚本输出JSON，提取indicators和technical_score"
+          },
+          "provides": ["ohlcv", "technical_indicators", "rsi", "macd", "ema", "bollinger_bands", "supertrend", "kdj", "atr", "obv", "vwap"],
+          "fallback_for": null,
+          "confidence_base": 0.95,
+          "advantage": "CoinGecko MCP提供完整OHLCV数据，配合本地Python ta库计算8个Tier 1指标。CEX代币用ohlc+marketChart合并，DEX代币用onchain端点直取。无需额外API Key。"
+        },
+        {
+          "id": "cmc_technical_mcp",
+          "name": "CMC Technical Analysis (via MCP)",
+          "enabled": true,
+          "priority": 2,
+          "auth": {
+            "type": "mcp",
+            "mcp_server": "cmc-mcp",
+            "requires": "CMC API Key (与market_data组共用)"
+          },
+          "acquisition": "mcp",
+          "mcp_tools": [
+            "get_crypto_technical_analysis(id) — 预计算技术指标: SMA(7/30/200), EMA(7/30/200), MACD(12,26,9), RSI(7/14/21), Fibonacci回撤/延伸, Pivot Point"
+          ],
+          "provides": ["rsi", "macd", "ema", "sma", "fibonacci", "pivot_point"],
+          "fallback_for": "coingecko_ohlcv_mcp",
+          "confidence_base": 0.90,
+          "advantage": "CMC已预计算RSI/MACD/EMA/MA 4个指标 + Fibonacci/Pivot bonus。作为交叉验证源，脚本支持 --cmc-data 参数对比本地计算与CMC计算结果。覆盖4/8个Tier 1指标。",
+          "covered_indicators": ["RSI", "MACD", "EMA", "MA(SMA)"],
+          "not_covered": ["Bollinger Bands", "SuperTrend", "KDJ", "ATR", "OBV", "VWAP"],
+          "notes": "作为交叉验证源使用，不作为唯一数据源。当CoinGecko OHLCV不可用时，CMC的4个预计算指标仍可提供基础技术面评估。"
+        }
+      ],
+
+      "local_calculation": {
+        "description": "本地Python脚本计算8个Tier 1指标",
+        "script_path": "scripts/technical_analysis.py",
+        "runtime": "python3",
+        "dependencies": ["ta==0.11.0", "pandas"],
+        "usage": "python scripts/technical_analysis.py --input <ohlcv.json> [--cmc-data <cmc_ta.json>]",
+        "input_format": "JSON: {symbol, interval, candles: [{timestamp, open, high, low, close, volume}]}",
+        "output_format": "JSON: {symbol, indicators, signal_summary, technical_score, cross_validation}",
+        "min_data_points": 30,
+        "volume_handling": "volume缺失时自动跳过OBV/VWAP，8指标降为6指标，评分逻辑自动适配"
+      }
     }
   },
 

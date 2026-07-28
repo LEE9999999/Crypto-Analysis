@@ -1,7 +1,7 @@
 # {{project_name}} ({{ticker}}) — 项目综合评估报告
 
 > 评估时间：{{evaluated_at}}
-> 评估版本：v1.1
+> 评估版本：v1.3
 > 数据完整度：{{data_completeness}} ({{completeness_label}})
 > TGE 状态：{{tge_status}}
 
@@ -22,17 +22,18 @@
 
 ---
 
-## 二、7维度加权评分卡
+## 二、8维度加权评分卡
 
 | # | 维度 | 评分 | 权重 | 加权分 | 来源Agent | 可信度 |
 |---|------|------|------|--------|----------|--------|
 | D1 | 项目基本面 | {{D1_score}} | 5% | {{D1_weighted}} | 信息萃取 | {{D1_confidence}} |
 | D2 | 安全性 | {{D2_score}} | 25% | {{D2_weighted}} | Agent3A | {{D2_confidence}} |
 | D3 | 流量热度 | {{D3_score}} | 10% | {{D3_weighted}} | Agent3B | {{D3_confidence}} |
-| D4 | 链上健康度 | {{D4_score}} | 20% | {{D4_weighted}} | Agent3D | {{D4_confidence}} |
+| D4 | 链上健康度 | {{D4_score}} | 15% | {{D4_weighted}} | Agent3D | {{D4_confidence}} |
 | D5 | 叙事力 | {{D5_score}} | 15% | {{D5_weighted}} | Agent3E-E1 | {{D5_confidence}} |
-| D6 | 资金力 | {{D6_score}} | 15% | {{D6_weighted}} | Agent3E-E2 | {{D6_confidence}} |
+| D6 | 资金力 | {{D6_score}} | 10% | {{D6_weighted}} | Agent3E-E2 | {{D6_confidence}} |
 | D7 | 市场表现 | {{D7_score}} | 10% | {{D7_weighted}} | Agent3E-E3 | {{D7_confidence}} |
+| D8 | 技术面分析 | {{D8_score}} | 10% | {{D8_weighted}} | Agent3E-E4 | {{D8_confidence}} |
 | — | **加权总分** | — | 100% | **{{final_score}}** | — | — |
 
 > 评分锚点参照 `rules/scoring_anchors.json`，所有评分基于统一坐标系。
@@ -199,6 +200,31 @@
 
 ---
 
+### D8 — 技术面分析 ({{D8_score}}/10, 权重10%)
+
+**数据来源**：{{D8_data_source}} ({{D8_data_points}}根K线)
+**交叉验证**：{{D8_cross_validation}}
+
+**8个Tier 1核心指标**
+| # | 指标 | 数值 | 信号 | 解读 |
+|---|------|------|------|------|
+| 1 | RSI(14) | {{rsi_value}} | {{rsi_signal}} | {{rsi_interpretation}} |
+| 2 | MACD(12,26,9) | DIF={{macd_line}} DEA={{signal_line}} Hist={{histogram}} | {{macd_signal}} | {{macd_interpretation}} |
+| 3 | EMA(5,20) | EMA5={{ema5}} EMA20={{ema20}} | {{ema_signal}} | {{ema_interpretation}} |
+| 4 | Bollinger(20,2) | U={{bb_upper}} M={{bb_middle}} L={{bb_lower}} W={{bb_width}}% | {{bb_signal}} | {{bb_interpretation}} |
+| 5 | SuperTrend(10,3) | {{st_value}} | {{st_direction}} | {{st_interpretation}} |
+| 6 | KDJ(9,3,3) | K={{kdj_k}} D={{kdj_d}} J={{kdj_j}} | {{kdj_signal}} | {{kdj_interpretation}} |
+| 7 | ATR(14) | {{atr_value}} ({{atr_pct}}%) | {{atr_level}} | {{atr_interpretation}} |
+| 8 | OBV/VWAP | OBV={{obv_value}} ({{obv_trend}}) VWAP={{vwap_value}} | {{obv_signal}} | {{obv_interpretation}} |
+
+**多空信号汇总**：{{bull_count}}看涨 / {{bear_count}}看跌 / {{neutral_count}}中性 (共{{total_directional}}个方向性指标)
+**技术评分推理**：{{D8_score_reasoning}}
+{{#if D8_volume_missing}}
+> ⚠️ Volume数据不可用，OBV/VWAP未参与计算，方向性指标从8个降为{{total_directional}}个
+{{/if}}
+
+---
+
 ## 四、跨维度战略洞察
 
 {{cross_dimension_insights}}
@@ -267,6 +293,7 @@
 | 叙事力 | {{D5_score}} | {{comp1_D5}} | {{comp2_D5}} | {{comp3_D5}} |
 | 资金力 | {{D6_score}} | {{comp1_D6}} | {{comp2_D6}} | {{comp3_D6}} |
 | 市场表现 | {{D7_score}} | {{comp1_D7}} | {{comp2_D7}} | {{comp3_D7}} |
+| 技术面 | {{D8_score}} | {{comp1_D8}} | {{comp2_D8}} | {{comp3_D8}} |
 
 **竞争优势**：{{competitive_advantage}}
 **竞争劣势**：{{competitive_disadvantage}}
@@ -307,6 +334,7 @@
 | D5 叙事 | {{D5_completeness}} | {{D5_missing}} |
 | D6 资金 | {{D6_completeness}} | {{D6_missing}} |
 | D7 市场 | {{D7_completeness}} | {{D7_missing}} |
+| D8 技术面 | {{D8_completeness}} | {{D8_missing}} |
 
 ### 信息缺口清单
 {{#each data_gaps}}
@@ -330,6 +358,7 @@
 | Security data | {{security_primary}} | {{security_actual}} | {{security_fallback}} | {{security_confidence_change}} |
 | Narrative data | {{narrative_primary}} | {{narrative_actual}} | {{narrative_fallback}} | {{narrative_confidence_change}} |
 | MM data | {{mm_primary}} | {{mm_actual}} | {{mm_fallback}} | {{mm_confidence_change}} |
+| Technical data | {{tech_primary}} | {{tech_actual}} | {{tech_fallback}} | {{tech_confidence_change}} |
 
 > 连接器配置参照 `config/connectors.json`，数据获取方法参照 `references/data_acquisition_guide.json`
 
@@ -363,16 +392,18 @@
     "D4_onchain": {{D4_raw}},
     "D5_narrative": {{D5_raw}},
     "D6_capital": {{D6_raw}},
-    "D7_market": {{D7_raw}}
+    "D7_market": {{D7_raw}},
+    "D8_technical": {{D8_raw}}
   },
   "weights": {
     "D1_fundamentals": 0.05,
     "D2_security": 0.25,
     "D3_traffic": 0.10,
-    "D4_onchain": 0.20,
+    "D4_onchain": 0.15,
     "D5_narrative": 0.15,
-    "D6_capital": 0.15,
-    "D7_market": 0.10
+    "D6_capital": 0.10,
+    "D7_market": 0.10,
+    "D8_technical": 0.10
   },
   "veto_triggered": {{veto_triggered}},
   "veto_source": "{{veto_source}}",

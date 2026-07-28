@@ -1,7 +1,7 @@
 {
-  "version": "1.1.0",
-  "description": "跨维度关联规则 — 当多个维度的分析结果出现特定组合时，触发深度跨维度分析（v1.1去掉接链规则，6条）",
-  "total_rules": 6,
+  "version": "1.3.0",
+  "description": "跨维度关联规则 — 当多个维度的分析结果出现特定组合时，触发深度跨维度分析（v1.3新增D8技术面相关规则，共8条）",
+  "total_rules": 8,
 
   "rules": [
     {
@@ -168,12 +168,67 @@
         "insight_type": "authentic_growth",
         "score_adjustment": "可考虑总分微调上调0.3-0.5"
       }
+    },
+
+    {
+      "id": "R007",
+      "name": "技术面-资金力背离",
+      "trigger_type": "triangulation",
+      "trigger": {
+        "condition": "(D8_technical.score >= 7 AND D6_capital.score < 4) OR (D8_technical.score < 4 AND D6_capital.score >= 7)",
+        "fields": ["score", "score"]
+      },
+      "importance": "high",
+      "skip_condition": "D8或D6未执行，或项目未TGE（D8需要OHLCV数据）",
+      "analysis_framework": {
+        "objective": "技术面信号与资金流向矛盾时，评估哪个维度更可信",
+        "sub_questions": [
+          "技术面看涨但资金流出：是否为短期技术反弹但中期资金仍在撤离？",
+          "技术面看跌但资金流入：是否为机构在下跌中建仓（聪明钱行为）？",
+          "OBV/VWAP方向是否与D6的Smart Money信号一致？",
+          "MACD背离是否与资金流向背离共振（更强的反转信号）？",
+          "技术指标的时效性如何？日线技术面 vs 资金面的时间维度是否匹配？"
+        ],
+        "expected_output": "技术面vs资金面矛盾分析 + 更可信方向判断 + 潜在反转预警"
+      },
+      "action": {
+        "report_flag": "⚠️ TECHNICAL_CAPITAL_DIVERGENCE",
+        "insight_type": "signal_contradiction"
+      }
+    },
+
+    {
+      "id": "R008",
+      "name": "技术面-市场表现共振",
+      "trigger_type": "triangulation",
+      "trigger": {
+        "condition": "D8_technical.score >= 7 AND D7_market.score >= 7",
+        "fields": ["score", "score"]
+      },
+      "importance": "medium",
+      "skip_condition": "D8或D7未执行",
+      "analysis_framework": {
+        "objective": "技术面和市场表现双强，评估是否存在技术面支撑的真实增长",
+        "sub_questions": [
+          "产品上线且技术面看涨：技术指标是否反映了产品增长带来的价格上行？",
+          "EMA上升趋势+产品成熟：是否处于产品-价格正循环？",
+          "SuperTrend买入+用户增长：趋势是否有真实用户基础支撑？",
+          "RSI是否接近超买？即使基本面好，技术面过热也需注意短期回调风险",
+          "ATR波动率是否合理？低波动+双强 = 稳健增长；高波动+双强 = 可能过热"
+        ],
+        "expected_output": "技术面与市场表现共振确认 + 增长可持续性判断 + 过热风险预警（如适用）"
+      },
+      "action": {
+        "report_flag": "✅ TECHNICAL_MARKET_RESONANCE",
+        "insight_type": "technical_fundamental_alignment",
+        "score_adjustment": "可考虑总分微调上调0.2-0.3"
+      }
     }
   ],
 
   "execution_rules": {
     "evaluation_order": "按 importance 降序执行: critical > high > medium > low",
-    "max_rules_per_project": 6,
+    "max_rules_per_project": 8,
     "insight_min_length": 50,
     "insight_max_length": 200,
     "output_format": "每条触发的规则输出: 规则ID + 规则名称 + 触发条件确认 + 分析结论 + 影响评估",

@@ -226,7 +226,7 @@
         "mcp_configured": {
           "status": "已配置 — RootData MCP Server (本地Python, uv运行)",
           "mcp_command": "uv run server.py",
-          "mcp_server_path": "<用户自行clone的路径, 如 ~/mcp-servers/rootdata-mcp-server>",
+          "mcp_server_path": "~/mcp-servers/rootdata-mcp-server",
           "mcp_server_name": "rootdata",
           "auth": "ROOTDATA_API_KEY, 写入 ~/.workbuddy/mcp.json 的env字段",
           "tools": [

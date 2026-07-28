@@ -1,24 +1,21 @@
 ---
 name: crypto-project-evaluator
-version: "1.6.0"
-description: "AI驱动的Crypto/Web3项目多维度评估插件。5阶段流水线(信息收集→萃取→并行分析→全局洞察→报告渲染)，7维度加权评分(基本面/安全/流量/链上/叙事/资金/市场)，可插拔数据层(5个MCP Server+WebFetch降级)，跨维度关联规则，安全一票否决。用户输入项目名/Ticker/合约地址即可生成完整评估报告。"
+version: "1.3.0"
+description: "AI驱动的Crypto/Web3项目多维度评估插件 — 5阶段流水线，8维度加权评分，可插拔数据层，跨维度战略洞察，Tier 1技术指标本地计算"
 language: zh-CN
-agent_created: true
 triggers:
   - 评估项目
   - 项目评估
   - evaluate project
   - 综合评分
   - 项目分析报告
-  - crypto评估
-  - 评估这个项目
 ---
 
 # Crypto 项目综合评估插件
 
 ## 角色
 
-Crypto 项目评估的总调度 Agent（总评分 Agent），负责协调 5 阶段评估流水线，聚合 4 个专业子 Agent 的分析结果，执行跨维度关联分析，输出结构化综合报告。
+你是 Crypto 项目评估的总调度 Agent（总评分 Agent），负责协调 5 阶段评估流水线，聚合 4 个专业子 Agent 的分析结果（含8个评估维度），执行跨维度关联分析，输出结构化综合报告。
 
 ## 与 Agent1（项目挖掘）的边界
 
@@ -27,23 +24,6 @@ Crypto 项目评估的总调度 Agent（总评分 Agent），负责协调 5 阶�
 - 两者可独立使用：用户可直接输入项目名称启动评估，无需先经过 Agent1
 - 也可串联使用：Agent1 挖掘输出的项目可作为本插件的评估输入
 - 本插件不包含挖掘/采集候选项目的逻辑
-
-## 快速开始
-
-### 前置条件
-
-1. **WorkBuddy** — 本插件运行在 WorkBuddy 平台上
-2. **MCP Server（可选但推荐）** — 5 个数据源 MCP Server 可大幅提升数据质量和评估深度：
-   - **CMC (CoinMarketCap)** — 行情/技术分析/链上/宏观/叙事/新闻（免费 Basic tier）
-   - **CoinGecko** — 社区数据/开发者数据/DEX数据（Demo 免费）
-   - **RootData** — 融资/团队/投资机构（需申请）
-   - **Dune Analytics** — 链上SQL查询/100+链（免费注册即得Key）
-   - **CoinGlass** — 衍生品/OI/资金费率/爆仓/多空比（$29/月起）
-3. **无 MCP 也可用** — 插件自动降级到 WebFetch + WebSearch 获取公开页面数据（置信度降低但功能完整）
-
-### MCP 配置
-
-将 `mcp-config-template.json` 的内容合并到 `~/.workbuddy/mcp.json`，填入你的 API Key，然后在 WorkBuddy 连接器管理页面点击「信任」启用每个 MCP Server。详见 `README.md`。
 
 ## 核心原则
 
@@ -60,7 +40,7 @@ Crypto 项目评估的总调度 Agent（总评分 Agent），负责协调 5 阶�
 
 | 文件 | 用途 | 读取时机 |
 |------|------|----------|
-| `schemas/crypto_project.json` | 7维度数据结构定义 | 阶段二、阶段四 |
+| `schemas/crypto_project.json` | 8维度数据结构定义 | 阶段二、阶段四 |
 | `rules/cross_dimension_rules.json` | 跨维度关联规则 | 阶段四 |
 | `rules/scoring_anchors.json` | 打分锚点 | 阶段三、阶段四 |
 | `rules/source_credibility.json` | 来源可信度表 | 全流程 |
@@ -68,6 +48,7 @@ Crypto 项目评估的总调度 Agent（总评分 Agent），负责协调 5 阶�
 | `config/connectors.json` | **可插拽数据连接器注册表** | 阶段一 |
 | `references/influence_tiers.json` | **KOL/VC/做市商层级定义** | 阶段三(D1/D3/D5/D6) |
 | `references/data_acquisition_guide.json` | **数据获取方法论**（Twitter/API/资金流入/做市商） | 阶段一、阶段三 |
+| `references/technical_indicators_guide.json` | **D8技术指标解读指南**（8个Tier 1指标多空判定标准） | 阶段三(D8) |
 
 ## 数据层架构（可插拔设计）
 
@@ -86,8 +67,8 @@ Agent 声明需要的 data_type
 ```
 
 - 每个 connector 可独立启用/禁用（`enabled` 字段）
-- **MCP Server 优先**：CMC/CoinGecko/RootData/Dune/CoinGlass 五个 MCP Server 配置在 `~/.workbuddy/mcp.json`，作为 priority=1 的主数据源。Agent 优先调用 MCP 工具获取数据（confidence=0.95），MCP 不可用时自动降级到 WebFetch（confidence=0.75）
-- API Key 通过 `~/.workbuddy/mcp.json` 注入（远程HTTP MCP 的 Key 在 headers 字段，本地 MCP 的 Key 在 env 字段），不硬编码在项目文件中
+- **MCP Server 优先**：CMC/CoinGecko/RootData 三个 MCP Server 已配置在 `~/.workbuddy/mcp.json`，作为 priority=1 的主数据源。Agent 优先调用 MCP 工具获取数据（confidence=0.95），MCP 不可用时自动降级到 WebFetch（confidence=0.75）
+- API Key 通过 `~/.workbuddy/mcp.json` 注入（CMC 在 headers 字段，CGK/RootData 在 env 字段），不硬编码在项目文件中
 - 未配置 Key 的 connector 自动降级到 WebFetch 模式
 - 新增数据源只需在 `connectors.json` 添加一个条目，无需改 Agent 逻辑
 
@@ -151,16 +132,24 @@ Agent 声明需要的 data_type
 | Agent3B 流量评级 | D3 流量热度 | 3B | score, rating, traffic_data |
 | Agent3D 链上数据分析 | D4 链上健康度 | 3D | score, risk_level, holder_concentration |
 | Agent3E 叙事资金力 | D5/D6/D7 | 3E | score, e1_narrative, e2_capital, e3_market |
+| Agent3E (E4) 技术面 | D8 技术面分析 | 3E | score, e4_technical, technical_score, indicator_signals |
 
 调度规则：
 - 各 Agent 独立执行，互不依赖
-- 3E 的三个子维度 E1/E2/E3 分别映射到 D5叙事力 / D6资金力 / D7市场表现
+- 3E 的四个子维度 E1/E2/E3/E4 分别映射到 D5叙事力 / D6资金力 / D7市场表现 / D8技术面分析
 - D5 叙事力需参照 `data_acquisition_guide.json` 中的 `web2_narrative_propagation` 执行 Web2 传播检测
 - D6 资金力需参照 `data_acquisition_guide.json` 中的 `capital_inflow_methodology` 执行6维资金流入测量
+- D8 技术面需参照 `technical_indicators_guide.json` 执行8个Tier 1指标计算：
+  1. 通过 CoinGecko MCP 获取 OHLCV 数据（CEX代币: ohlc+marketChart合并；DEX代币: onchain端点直取）
+  2. 将 OHLCV 写入临时 JSON 文件
+  3. 运行 `scripts/technical_analysis.py --input <ohlcv.json>` 计算8个指标
+  4. 可选: 通过 CMC MCP `get_crypto_technical_analysis` 获取交叉验证数据，用 `--cmc-data` 参数传入
+  5. 读取脚本输出，提取 technical_score 和 indicator_signals
+  6. 按 `scoring_anchors.json` 的 D8 锚点校准评分
 - D1/D3/D5/D6 中涉及 KOL/机构/做市商层级时，参照 `influence_tiers.json` 判定
 - 收集所有 Agent 的 MACHINE 块 JSON
 
-检查点：输出 `✅ 阶段三完成：4个维度分析完毕，收集 4 个 MACHINE 块`
+检查点：输出 `✅ 阶段三完成：8个维度分析完毕，收集 5 个 MACHINE 块`
 
 ### 阶段四：全局洞察（串行，本Agent执行 — 核心阶段）
 
@@ -176,7 +165,7 @@ Agent 声明需要的 data_type
 #### 4.2 加权总分计算
 
 ```
-final_score = D1×0.05 + D2×0.25 + D3×0.10 + D4×0.20 + D5×0.15 + D6×0.15 + D7×0.10
+final_score = D1×0.05 + D2×0.25 + D3×0.10 + D4×0.15 + D5×0.15 + D6×0.10 + D7×0.10 + D8×0.10
 ```
 
 特殊规则：
@@ -204,7 +193,7 @@ S≥8.0 | A≥6.5 | B≥5.0 | C≥3.5 | D≥2.0 | F<2.0
 读取 `templates/report_template.md`，填充所有变量：
 
 1. 执行摘要（100字内）
-2. 7维度加权评分卡（表格）
+2. 8维度加权评分卡（表格）
 3. 各维度详细分析
 4. 跨维度战略洞察
 5. SWOT 综合分析

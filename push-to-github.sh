@@ -15,7 +15,7 @@
 set -e
 
 echo "========================================="
-echo "  Crypto Project Evaluator -> GitHub"
+echo "  Crypto Project Evaluator v2.0 -> GitHub"
 echo "========================================="
 echo ""
 
@@ -30,15 +30,18 @@ git config user.email "$GIT_EMAIL"
 
 # 3. 添加文件并提交
 git add -A
-git commit -m "Initial release: Crypto Project Evaluator v1.6
+git commit -m "v2.0: Crypto Project Evaluator - 8-dimension analysis
 
-- 7-dimension weighted scoring (D1-D7) for Crypto/Web3 projects
+- 8-dimension weighted scoring (D1-D8) for Crypto/Web3 projects
+- D8 technical analysis: 8 Tier 1 indicators (RSI/MACD/EMA/Bollinger/SuperTrend/KDJ/ATR/OBV-VWAP)
+- Local Python calculation engine using ta library
 - 5-phase pipeline: collection -> extraction -> analysis -> insight -> report
 - 5 MCP server integrations (CMC/CoinGecko/RootData/Dune/CoinGlass)
-- 8 connector groups with pluggable architecture + graceful degradation
-- 6 cross-dimension correlation rules with safety veto
+- 9 connector groups with pluggable architecture + graceful degradation
+- 8 cross-dimension correlation rules with safety veto
 - KOL/VC/MarketMaker influence tier definitions
-- Tested with real evaluation (Kite AI, rating B 5.38/10)"
+- D5 Web2 narrative propagation detection
+- D6 6-dimensional capital inflow measurement"
 
 echo ""
 echo "Commit created. Now pushing to GitHub..."
@@ -47,7 +50,12 @@ echo "生成 Token: https://github.com/settings/tokens/new?scopes=repo"
 echo ""
 
 # 4. 推送
-git remote add origin "$REPO_URL"
+# 如果已有 origin 则更新地址，否则添加
+if git remote get-url origin >/dev/null 2>&1; then
+  git remote set-url origin "$REPO_URL"
+else
+  git remote add origin "$REPO_URL"
+fi
 git push -u origin main
 
 echo ""

@@ -12,7 +12,18 @@ Thumbs.db
 *.env
 .env.local
 secrets.json
+mcp.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
 
 # Reports (generated outputs)
 reports/
 *.log
+
+# Test data
+test_data/

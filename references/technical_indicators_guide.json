@@ -1,0 +1,215 @@
+{
+  "version": "1.0.0",
+  "description": "D8 技术面分析指标解读指南 — 8个Tier 1核心指标的多空判定标准、正常范围和极端值含义。配合 scripts/technical_analysis.py 使用。",
+
+  "data_acquisition": {
+    "description": "OHLCV K线数据获取方法，用于本地计算8个Tier 1指标",
+    "cex_listed": {
+      "description": "已上线CEX的代币 — 通过CoinGecko MCP获取OHLCV",
+      "step_1": "调用 CoinGecko MCP coins.ohlc.get(id, days='90', vs_currency='usd', interval='daily') 获取OHLC数据 [timestamp, open, high, low, close]",
+      "step_2": "调用 CoinGecko MCP coins.marketChart.get(id, days='90', vs_currency='usd', interval='daily') 获取total_volumes [timestamp, volume]",
+      "step_3": "按timestamp合并OHLC和volume为完整OHLCV",
+      "step_4": "将合并后的数据写入临时JSON文件，格式: {symbol, interval, candles: [{timestamp, open, high, low, close, volume}]}",
+      "step_5": "运行: python scripts/technical_analysis.py --input <temp_ohlcv.json>",
+      "step_6": "读取脚本输出的JSON，提取indicators和technical_score",
+      "min_data_points": "至少30根日K线（约3个月），推荐90根（约3个月日K）"
+    },
+    "dex_only": {
+      "description": "仅DEX交易的代币 — 通过CoinGecko MCP onchain端点获取OHLCV",
+      "step_1": "调用 CoinGecko MCP onchain.networks.tokens.ohlcv.getTimeframe(network, token_address, 'day', limit=100) 获取完整OHLCV [timestamp, open, high, low, close, volume]",
+      "step_2": "将数据写入临时JSON文件",
+      "step_3": "运行: python scripts/technical_analysis.py --input <temp_ohlcv.json>",
+      "note": "DEX代币的volume数据天然完整，无需额外获取"
+    },
+    "cmc_cross_validation": {
+      "description": "CMC MCP 技术分析作为交叉验证源（覆盖RSI/MACD/EMA/MA 4个指标）",
+      "method": "调用 CMC MCP get_crypto_technical_analysis(id) 获取已计算的RSI/MACD/EMA/SMA",
+      "usage": "脚本支持 --cmc-data 参数传入CMC返回的JSON，输出中包含cross_validation字段对比本地计算与CMC计算结果",
+      "purpose": "验证本地计算准确性，差异<5%为正常（因计算窗口和参数可能略有不同）"
+    },
+    "volume_missing": {
+      "description": "当无法获取volume数据时（仅OHLC）",
+      "behavior": "脚本自动跳过OBV和VWAP计算，输出中标注'Volume data not available'",
+      "impact": "8个指标中6个可正常计算（RSI/MACD/EMA/BB/SuperTrend/KDJ/ATR），OBV/VWAP标注neutral不参与方向计数",
+      "score_adjustment": "directional指标总数从8降为6，评分逻辑自动适配"
+    }
+  },
+
+  "indicators": {
+    "rsi": {
+      "name": "相对强弱指数 (Relative Strength Index)",
+      "name_zh": "RSI 相对强弱指数",
+      "param": "period=14",
+      "value_range": "0-100",
+      "signals": {
+        "bullish": "RSI < 30 (超卖，可能反弹)",
+        "bearish": "RSI > 70 (超买，可能回调)",
+        "neutral": "30 <= RSI <= 70 (中性区间)"
+      },
+      "extreme_values": {
+        "below_20": "极度超卖，强烈反弹信号（但需确认趋势）",
+        "above_80": "极度超买，强烈回调信号（但强趋势中可能持续超买）"
+      },
+      "note": "RSI是动量指标之王。超卖不等于必涨，超买不等于必跌，需结合趋势和其他指标确认。"
+    },
+
+    "macd": {
+      "name": "指数平滑异同移动平均线 (Moving Average Convergence Divergence)",
+      "name_zh": "MACD 指数平滑异同线",
+      "param": "fast=12, slow=26, signal=9",
+      "components": {
+        "macd_line": "DIF快线 = EMA(12) - EMA(26)",
+        "signal_line": "DEA慢线 = EMA(DIF, 9)",
+        "histogram": "柱状图 = DIF - DEA"
+      },
+      "signals": {
+        "bullish": "DIF > DEA (金叉，看涨)",
+        "bearish": "DIF < DEA (死叉，看跌)"
+      },
+      "divergence": {
+        "bullish_divergence": "价格创新低但MACD未创新低 — 底背离，强烈看涨信号",
+        "bearish_divergence": "价格创新高但MACD未创新高 — 顶背离，强烈看跌信号"
+      },
+      "note": "MACD同时反映趋势和动量。柱状图由负转正是早期看涨信号。"
+    },
+
+    "ema": {
+      "name": "指数移动平均线 (Exponential Moving Average)",
+      "name_zh": "EMA 指数移动平均线",
+      "param": "short=5, long=20",
+      "signals": {
+        "bullish": "EMA5 > EMA20 且 价格 > EMA20 (上升趋势)",
+        "bearish": "EMA5 < EMA20 且 价格 < EMA20 (下降趋势)",
+        "neutral": "EMA5和EMA20交叉混合，趋势不明"
+      },
+      "support_resistance": {
+        "ema20_support": "价格回踩EMA20不破 — EMA20作为动态支撑",
+        "ema20_resistance": "价格反弹至EMA20不过 — EMA20作为动态阻力"
+      },
+      "note": "EMA对近期价格更敏感，适合判断短期趋势方向。"
+    },
+
+    "bollinger": {
+      "name": "布林带 (Bollinger Bands)",
+      "name_zh": "BB 布林带",
+      "param": "window=20, std=2",
+      "components": {
+        "upper": "中轨 + 2倍标准差",
+        "middle": "20日简单移动平均(SMA20)",
+        "lower": "中轨 - 2倍标准差",
+        "width_pct": "带宽百分比 = (上轨-下轨)/中轨 × 100"
+      },
+      "signals": {
+        "bullish": "价格触及或跌破下轨 (超卖)",
+        "bearish": "价格触及或突破上轨 (超买)",
+        "neutral": "价格在带内正常波动"
+      },
+      "squeeze": "带宽收窄至历史低位 — 波动率挤压，预示即将出现方向性突破",
+      "note": "布林带反映波动率和均值回归。带宽收窄是变盘前兆。"
+    },
+
+    "supertrend": {
+      "name": "超级趋势线 (SuperTrend)",
+      "name_zh": "SuperTrend 超级趋势线",
+      "param": "period=10, multiplier=3",
+      "signals": {
+        "bullish": "direction=buy (价格在趋势线上方，看涨)",
+        "bearish": "direction=sell (价格在趋势线下方，看跌)"
+      },
+      "usage": "基于ATR的动态止损线，趋势跟踪策略核心指标。方向切换是最直观的趋势反转信号。",
+      "note": "SuperTrend在趋势市场中表现优秀，但在震荡市场中可能产生频繁的假信号。"
+    },
+
+    "kdj": {
+      "name": "随机指标 (Stochastic Oscillator KDJ)",
+      "name_zh": "KDJ 随机指标",
+      "param": "k_window=9, k_smooth=3, d_smooth=3",
+      "components": {
+        "k": "K线 = RSV的3日平滑",
+        "d": "D线 = K线的3日平滑",
+        "j": "J线 = 3K - 2D (KDJ的核心信号线)"
+      },
+      "signals": {
+        "bullish": "J < 0 (超卖) 或 K > D (金叉)",
+        "bearish": "J > 100 (超买) 或 K < D (死叉)"
+      },
+      "extreme_values": {
+        "j_below_minus_10": "极度超卖，强烈反弹信号",
+        "j_above_110": "极度超买，强烈回调信号"
+      },
+      "note": "KDJ在亚洲市场（尤其中文圈）最常用的短线指标。J线的极端值比K/D交叉更具参考价值。"
+    },
+
+    "atr": {
+      "name": "平均真实波幅 (Average True Range)",
+      "name_zh": "ATR 平均真实波幅",
+      "param": "period=14",
+      "description": "衡量价格波动幅度，非方向性指标",
+      "levels": {
+        "high_volatility": "ATR > 价格的5% — 高波动，高风险",
+        "moderate_volatility": "ATR在价格的2-5% — 中等波动",
+        "low_volatility": "ATR < 价格的2% — 低波动，较稳定"
+      },
+      "score_impact": {
+        "high_volatility": "技术评分-0.5 (风险惩罚)",
+        "low_volatility": "技术评分+0.2 (稳定性奖励)"
+      },
+      "usage": "主要用于计算止损位和仓位管理。ATR越高，需要更宽的止损和更小的仓位。",
+      "note": "ATR不判断方向，只衡量波动。高波动既是风险也是机会。"
+    },
+
+    "obv": {
+      "name": "能量潮指标 (On-Balance Volume)",
+      "name_zh": "OBV 能量潮",
+      "signals": {
+        "bullish": "OBV上升 — 资金累积(accumulation)，买方主导",
+        "bearish": "OBV下降 — 资金分发(distribution)，卖方主导"
+      },
+      "divergence": {
+        "bullish_divergence": "价格下跌但OBV上升 — 底背离，资金在吸筹",
+        "bearish_divergence": "价格上涨但OBV下降 — 顶背离，资金在出货"
+      },
+      "note": "OBV通过累积成交量判断资金流向。'量在价先'是OBV的核心逻辑。",
+      "data_requirement": "需要volume数据。如无法获取volume，OBV将标注为不可用。"
+    },
+
+    "vwap": {
+      "name": "成交量加权平均价 (Volume Weighted Average Price)",
+      "name_zh": "VWAP 成交量加权均价",
+      "signals": {
+        "bullish": "价格 > VWAP — 买方主导，多数交易者盈利",
+        "bearish": "价格 < VWAP — 卖方主导，多数交易者亏损"
+      },
+      "usage": "VWAP是机构交易的成本基准。机构通常在VWAP下方买入，上方卖出。",
+      "note": "VWAP通常用于日内交易，但在日级别也有参考价值——反映近期平均持仓成本。",
+      "data_requirement": "需要volume数据。如无法获取volume，VWAP将标注为不可用。"
+    }
+  },
+
+  "scoring_methodology": {
+    "description": "D8技术评分(0-10)基于7个方向性指标的多空信号计数 + ATR波动率修正",
+    "directional_indicators": ["RSI", "MACD", "EMA", "Bollinger", "SuperTrend", "KDJ", "OBV", "VWAP"],
+    "score_mapping": {
+      "9-10": ">=85%指标看涨 — 强烈看涨技术面",
+      "7-9": "60-85%指标看涨 — 看涨技术面",
+      "5-7": "40-60%指标看涨 — 中性技术面",
+      "3-5": "20-40%指标看涨 — 看跌技术面",
+      "1-3": "<20%指标看涨 — 强烈看跌技术面"
+    },
+    "atr_modifier": {
+      "high_volatility": "评分-0.5",
+      "low_volatility": "评分+0.2",
+      "moderate_volatility": "无修正"
+    },
+    "volume_missing_handling": "当volume不可用时，directional指标从8个降为6个，评分逻辑自动适配"
+  },
+
+  "cross_validation_with_cmc": {
+    "description": "CMC MCP的get_crypto_technical_analysis提供RSI/MACD/EMA/SMA的预计算值",
+    "covered_by_cmc": ["RSI(7/14/21)", "MACD(12,26,9)", "EMA(7/30/200)", "SMA(7/30/200)"],
+    "not_covered_by_cmc": ["Bollinger Bands", "SuperTrend", "KDJ", "ATR", "OBV", "VWAP"],
+    "bonus_from_cmc": ["Fibonacci回撤/延伸位", "Pivot Point(支撑阻力位)"],
+    "validation_threshold": "本地计算与CMC值差异<5%为正常（计算窗口和参数可能略有不同）",
+    "usage": "传入 --cmc-data 参数进行交叉验证，输出包含cross_validation对比字段"
+  }
+}
