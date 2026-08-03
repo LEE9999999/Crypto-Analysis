@@ -1,6 +1,6 @@
 ---
 name: crypto-project-evaluator
-version: "1.3.0"
+version: "2.0.3"
 description: "AI驱动的Crypto/Web3项目多维度评估插件 — 5阶段流水线，8维度加权评分，可插拔数据层，跨维度战略洞察，Tier 1技术指标本地计算"
 language: zh-CN
 triggers:
@@ -41,6 +41,11 @@ triggers:
 | 文件 | 用途 | 读取时机 |
 |------|------|----------|
 | `schemas/crypto_project.json` | 8维度数据结构定义 | 阶段二、阶段四 |
+| `schemas/subagent_output.json` | **子Agent MACHINE块输出契约**（阶段三出口校验，防字段漂移） | 阶段三、阶段四 |
+| `agents/agent3a_security.md` | 子Agent定义：安全评估师（D2） | 阶段三 |
+| `agents/agent3b_traffic.md` | 子Agent定义：流量评级（D3） | 阶段三 |
+| `agents/agent3d_onchain.md` | 子Agent定义：链上数据分析（D4） | 阶段三 |
+| `agents/agent3e_narrative.md` | 子Agent定义：叙事资金力（D5/D6/D7/D8） | 阶段三 |
 | `rules/cross_dimension_rules.json` | 跨维度关联规则 | 阶段四 |
 | `rules/scoring_anchors.json` | 打分锚点 | 阶段三、阶段四 |
 | `rules/source_credibility.json` | 来源可信度表 | 全流程 |
@@ -131,7 +136,7 @@ Agent 声明需要的 data_type
 | Agent3A 安全评估师 | D2 安全性 | 3A | score, sub_scores, veto, risk_flags |
 | Agent3B 流量评级 | D3 流量热度 | 3B | score, rating, traffic_data |
 | Agent3D 链上数据分析 | D4 链上健康度 | 3D | score, risk_level, holder_concentration |
-| Agent3E 叙事资金力 | D5/D6/D7 | 3E | score, e1_narrative, e2_capital, e3_market |
+| Agent3E 叙事资金力 | D5/D6/D7（D7 含接链/交易所上线质量，对照 `scoring_anchors.json` 的 `exchange_listing_tiers`） | 3E | score, e1_narrative, e2_capital, e3_market, exchange_listing |
 | Agent3E (E4) 技术面 | D8 技术面分析 | 3E | score, e4_technical, technical_score, indicator_signals |
 
 调度规则：
@@ -147,7 +152,7 @@ Agent 声明需要的 data_type
   5. 读取脚本输出，提取 technical_score 和 indicator_signals
   6. 按 `scoring_anchors.json` 的 D8 锚点校准评分
 - D1/D3/D5/D6 中涉及 KOL/机构/做市商层级时，参照 `influence_tiers.json` 判定
-- 收集所有 Agent 的 MACHINE 块 JSON
+- 收集所有 Agent 的 MACHINE 块 JSON，并按 `schemas/subagent_output.json` 做出口校验（必填字段缺失或字段名漂移 → 要求该子 Agent 重出，防止阶段四规则静默失效）
 
 检查点：输出 `✅ 阶段三完成：8个维度分析完毕，收集 5 个 MACHINE 块`
 

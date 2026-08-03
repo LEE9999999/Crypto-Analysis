@@ -1,6 +1,6 @@
 # Crypto Project Evaluator
 
-**AI 驱动的 Crypto/Web3 项目多维度评估插件（v2.0）**
+**AI 驱动的 Crypto/Web3 项目多维度评估插件（v2.0.3 · 2026-08-03）**
 
 8 维度加权评分 · 5 阶段流水线 · 5 个 MCP Server 数据层 · 8 个 Tier 1 技术指标本地计算 · 跨维度关联洞察 · 安全一票否决
 
@@ -42,7 +42,7 @@
 | D4 | 链上健康度 | 15% | Agent3D | 持仓分布/Smart Money/流动性/链上交易 |
 | D5 | 叙事力 | 15% | Agent3E-E1 | Crypto native热度 + Web2传播6维 |
 | D6 | 资金力 | 10% | Agent3E-E2 | 6维资金流入信号 / 融资机构层级 |
-| D7 | 市场表现 | 10% | Agent3E-E3 | 价格走势/市值排名/交易量/波动率 |
+| D7 | 市场表现 | 10% | Agent3E-E3 | 价格走势/产品阶段/交易所上线层级(接链, v2.0.3并入)/交易量 |
 | D8 | 技术面 | 10% | Agent3E-E4 | 8个Tier 1技术指标多空信号 + ATR波动率修正 |
 
 > **D2 安全一票否决**：触发否决条件时，总分上限 2.0，评级强制 F。
@@ -249,7 +249,13 @@ crypto-project-evaluator/
 ├── mcp-config-template.json              # MCP Server 配置模板（填Key后合并到 ~/.workbuddy/mcp.json）
 ├── push-to-github.sh                     # 一键推送到 GitHub 脚本
 ├── schemas/
-│   └── crypto_project.json               # 8维度数据结构定义 + 数据处理策略
+│   ├── crypto_project.json               # 8维度数据结构定义 + 数据处理策略
+│   └── subagent_output.json              # 子Agent MACHINE块输出契约（阶段三出口校验）
+├── agents/
+│   ├── agent3a_security.md               # 子Agent定义：安全评估师（D2）
+│   ├── agent3b_traffic.md                # 子Agent定义：流量评级（D3）
+│   ├── agent3d_onchain.md                # 子Agent定义：链上数据分析（D4）
+│   └── agent3e_narrative.md              # 子Agent定义：叙事资金力（D5/D6/D7/D8）
 ├── rules/
 │   ├── cross_dimension_rules.json        # 8条跨维度关联规则 (R001-R008)
 │   ├── scoring_anchors.json              # 8维度1-10分打分锚点 + 评级转换
@@ -261,10 +267,28 @@ crypto-project-evaluator/
 │   ├── data_acquisition_guide.json       # Twitter/API/资金流入6维/Web2传播/做市商检测方法论
 │   └── technical_indicators_guide.json  # D8技术指标解读 + 数据获取 + 评分方法
 ├── scripts/
-│   └── technical_analysis.py             # D8本地计算引擎（8个Tier 1指标, ta库）
+│   ├── technical_analysis.py             # D8本地计算引擎（8个Tier 1指标, ta库）
+│   └── test_technical_analysis.py        # D8单元测试（含中性信号回归测试）
 └── templates/
     └── report_template.md                # 评估报告模板（8维度评分卡 + D8技术面段落 + 连接器报告）
 ```
+
+---
+
+## 更新日志
+
+### v2.0.3（2026-08-03）
+
+- **接链分析并入 D7**：原 Agent3C 接链维度取消，交易所上线层级评估并入 D7 市场表现（`scoring_anchors.json` 新增 `exchange_listing_tiers`）
+- **子 Agent 定义入库**：新增 `agents/` 目录（3A/3B/3D/3E 四个子 Agent 的完整定义），编排器不再空转
+- **输出契约**：新增 `schemas/subagent_output.json`，阶段三出口强制校验 MACHINE 块字段，防止跨维度规则静默失效
+- **D8 评分修复**：中性信号不再被计为空头（旧逻辑 1 bullish + 6 neutral 会误判"强烈看空"）；新增方向覆盖率收敛
+- **SuperTrend 重写**：跳过 ATR 预热期 NaN、修正初始方向，短数据（DEX 新币 30 根 K 线）下结果稳定
+- **D8 单元测试**：`scripts/test_technical_analysis.py`，含中性信号回归测试
+- **GoPlus 启用**：免费无 Key 的合约安全检测 API 默认启用（onchain + security 两组）
+- **fallback 链修复**：跳过 disabled 的 legacy connector
+- **Twitter 新增浏览器驱动方案**：AI 驱动本机已登录浏览器抓取，免费、抗封（见 `connectors.json` social_data）
+- **版本号统一**：全部配置文件统一为 2.0.3
 
 ---
 
