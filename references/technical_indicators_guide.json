@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.3",
   "description": "D8 技术面分析指标解读指南 — 8个Tier 1核心指标的多空判定标准、正常范围和极端值含义。配合 scripts/technical_analysis.py 使用。",
 
   "data_acquisition": {
@@ -187,7 +187,7 @@
   },
 
   "scoring_methodology": {
-    "description": "D8技术评分(0-10)基于7个方向性指标的多空信号计数 + ATR波动率修正",
+    "description": "D8技术评分(0-10)基于7个方向性指标的多空信号计数 + ATR波动率修正。v2.0.3起：多空比例只在有明确方向的指标间计算(bull/(bull+bear))，再按方向覆盖率向中性分5.5收敛，中性信号不再被计为空头",
     "directional_indicators": ["RSI", "MACD", "EMA", "Bollinger", "SuperTrend", "KDJ", "OBV", "VWAP"],
     "score_mapping": {
       "9-10": ">=85%指标看涨 — 强烈看涨技术面",

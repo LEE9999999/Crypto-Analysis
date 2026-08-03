@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.3",
   "description": "影响力层级定义 — KOL四级、机构/VC五级、做市商三级。用于D1基本面(investor_tier)、D3流量热度(kol_impact)、D5叙事力(binding_strength)、D6资金力(market_maker_tier)的评分参照。回答疑问3。",
 
   "kol_tiers": {

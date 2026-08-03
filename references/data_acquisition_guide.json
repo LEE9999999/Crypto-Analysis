@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.3",
   "description": "数据获取方法论 — 覆盖Twitter数据、API接入(CMC/CGK/RootData)、资金流入测量、做市商检测的实操指南。每个数据类型定义主源→替代源链路和获取方式。",
 
   "twitter_data": {
