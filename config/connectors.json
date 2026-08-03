@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.3",
   "description": "可插拽数据连接器注册表 — 控制数据源的启用/禁用、优先级、认证方式和降级链。Agent 不直接调 API，而是通过数据层 facade 按 connector 配置自动获取数据。新增数据源只需在此文件添加一个 connector 条目。",
 
   "design_principles": {
@@ -131,9 +131,9 @@
           "acquisition": "webfetch",
           "url_pattern": "https://coinmarketcap.com/currencies/{slug}/",
           "provides": ["price", "volume_24h", "market_cap", "cmc_rank", "percent_change_24h", "percent_change_7d", "circulating_supply", "exchange_listed"],
-          "fallback_for": "cmc_api",
+          "fallback_for": "coingecko_mcp",
           "confidence_base": 0.75,
-          "notes": "无需 API Key 的降级方案，解析公开页面。数据可能有1-5分钟延迟。"
+          "notes": "无需 API Key 的降级方案，解析公开页面。数据可能有1-5分钟延迟。（v2.0.3：fallback_for 改为 coingecko_mcp，跳过 disabled 的 legacy cmc_api；facade 实际按 priority 顺序尝试，enabled=false 的 connector 自动跳过）"
         },
         {
           "id": "coingecko_api",
@@ -169,7 +169,7 @@
           "acquisition": "webfetch",
           "url_pattern": "https://www.coingecko.com/en/coins/{coingecko_id}",
           "provides": ["price", "volume_24h", "market_cap", "percent_change_24h", "percent_change_7d"],
-          "fallback_for": "coingecko_api",
+          "fallback_for": "cmc_webfetch",
           "confidence_base": 0.75
         },
         {
@@ -385,6 +385,30 @@
               "notes": "最稳定但最重: 需安装Chromium(~300MB), 反检测能力最强。适合长期高频使用。服务器环境需配Xvfb虚拟显示。"
             },
             {
+              "name": "AI 浏览器驱动方案 (免费, 无API, v2.0.3新增)",
+              "type": "browser_automation",
+              "cost": "完全免费",
+              "principle": "不调用任何Twitter API，由AI直接驱动用户本机已登录X的浏览器（Playwright/CDP 或 Kimi WebBridge 类工具），以真人浏览行为读取搜索页/用户主页/推文互动数据，反检测能力最强",
+              "capabilities": ["搜索推文(关键词/代币符号)", "读取用户资料(粉丝数/发推数)", "读取推文互动量(点赞/转发/浏览)", "KOL提及扫描"],
+              "auth_required": "用户浏览器中已登录的X账号会话（复用现有cookies，无需提取）",
+              "rate_limit": "模拟真人浏览节奏（每次抓取间隔2-5秒随机），单次评估抓取≤20页",
+              "session_limit": "单次浏览会话硬上限15分钟，到时必须关闭浏览器停止抓取，剩余数据标注缺口，不强行续抓（连续长会话是X风控最主要的识别特征）",
+              "human_simulation": {
+                "rules": [
+                  "随机间隔：页面/动作间隔 2-8 秒随机，拒绝固定节奏",
+                  "自然路径：先进首页/搜索页停留滚动，再进目标页，不直接深链连跳",
+                  "滚动行为：每页滚动2-4屏再抓取，模拟阅读",
+                  "量控：单次会话≤20页、≤2个搜索词，抓够D3/D5所需核心指标（粉丝数/近10条推文互动/前20条搜索结果）即停",
+                  "不互动：只读，禁止点赞/关注/转发等任何写操作",
+                  "退出：15分钟到点或任务完成立即关闭会话"
+                ],
+                "purpose": "短时间窗口内行为序列与真人浏览一致，降低风控识别概率"
+              },
+              "usage": "评估执行时由Agent按需触发：打开 x.com/search?q={ticker} 与 x.com/{handle}，截取结构化文本后关闭。不做7×24常驻监听（会被风控），改为'评估时实时抓取'模式",
+              "risk_note": "模拟浏览违反X服务条款，存在账号限流/封禁风险，建议使用小号；抓取频率务必克制",
+              "notes": "推荐在支持浏览器控制的AI平台（如Kimi WebBridge / Playwright MCP）上使用。相比twikit逆向API更抗封，因为行为与真人完全一致。enable后将twitter_api_mcp的enabled设为true并按此方案执行。"
+            },
+            {
               "name": "x-mcp (付费, 官方Twitter API, 不推荐)",
               "repo": "https://github.com/ajitashwath/x-mcp",
               "runtime": "Python 3.9+",
@@ -411,7 +435,7 @@
             "2. 安装依赖: pip install -r requirements.txt (或 uvx twikit-mcp 一键安装)",
             "3. 用浏览器登录 x.com (Twitter), 按 F12 打开DevTools",
             "4. Application → Cookies → https://x.com → 复制 ct0 和 auth_token 两个值",
-            "5. 创建 cookies.json: {\"ct0\": \"复制的ct0值\", \"auth_token\": \"复制的auth_token值\"}",
+            "5. 创建 cookies.json: {\"ct0\": \"复制的ct0值\", \"auth_token\": \"复制的auth_token_value\"}",
             "6. 在 ~/.workbuddy/mcp.json 中添加 twitter server 配置 (见 mcp_server_options[0].config_example)",
             "7. 重启WorkBuddy后在连接器管理页面点击Trust启用",
             "8. 将 connectors.json 中 twitter_api_mcp 的 enabled 改为 true",
@@ -564,7 +588,7 @@
         {
           "id": "goplus_api",
           "name": "GoPlus Security API",
-          "enabled": false,
+          "enabled": true,
           "priority": 5,
           "auth": { "type": "none" },
           "acquisition": "api",
@@ -793,7 +817,7 @@
         {
           "id": "goplus_security_api",
           "name": "GoPlus Security API",
-          "enabled": false,
+          "enabled": true,
           "priority": 1,
           "auth": { "type": "none" },
           "acquisition": "api",
