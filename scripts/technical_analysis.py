@@ -42,6 +42,7 @@ import argparse
 import json
 import sys
 
+import numpy as np
 import pandas as pd
 import ta
 
@@ -49,60 +50,85 @@ import ta
 def calculate_supertrend(df, period=10, multiplier=3):
     """Calculate SuperTrend indicator (ta library does not have it built-in).
 
+    v2.0.3 fix:
+    - 跳过 ATR 预热期的 NaN（前 period-1 根），从第一个有效值初始化，
+      避免 NaN 比较导致整段趋势状态失效
+    - 初始方向按收盘价与 hl2 的相对位置确定，不再恒为 1
+    - 使用 numpy 数组，避免 pandas index 对齐问题
+
     Returns: (supertrend_value, direction) where direction=1 is bullish, -1 is bearish.
     """
-    high = df["high"]
-    low = df["low"]
-    close = df["close"]
+    high = df["high"].values.astype(float)
+    low = df["low"].values.astype(float)
+    close = df["close"].values.astype(float)
 
-    atr_obj = ta.volatility.AverageTrueRange(high, low, close, window=period)
-    atr_vals = atr_obj.average_true_range()
+    atr_vals = (
+        ta.volatility.AverageTrueRange(
+            df["high"], df["low"], df["close"], window=period
+        )
+        .average_true_range()
+        .values
+    )
 
+    n = len(close)
     hl2 = (high + low) / 2
     upper_basic = hl2 + multiplier * atr_vals
     lower_basic = hl2 - multiplier * atr_vals
 
-    upper_band = upper_basic.copy()
-    lower_band = lower_basic.copy()
+    # ATR 前 period-1 个值为 NaN，定位第一个有效起点
+    start = None
+    for i in range(n):
+        if not np.isnan(atr_vals[i]):
+            start = i
+            break
+    if start is None or start >= n - 1:
+        raise ValueError("Not enough valid data for SuperTrend calculation")
 
-    for i in range(1, len(close)):
-        if (upper_basic.iloc[i] < upper_band.iloc[i - 1]) or (
-            close.iloc[i - 1] > upper_band.iloc[i - 1]
-        ):
-            upper_band.iloc[i] = upper_basic.iloc[i]
+    upper_band = np.full(n, np.nan)
+    lower_band = np.full(n, np.nan)
+    supertrend = np.full(n, np.nan)
+    direction = np.zeros(n, dtype=int)
+
+    upper_band[start] = upper_basic[start]
+    lower_band[start] = lower_basic[start]
+    # 初始方向：收盘价在 hl2 上方视为上升趋势（站上轨），否则下降
+    if close[start] >= hl2[start]:
+        direction[start] = 1
+        supertrend[start] = lower_band[start]
+    else:
+        direction[start] = -1
+        supertrend[start] = upper_band[start]
+
+    for i in range(start + 1, n):
+        # 上轨只能下移（除非昨日收盘已突破上轨）
+        if upper_basic[i] < upper_band[i - 1] or close[i - 1] > upper_band[i - 1]:
+            upper_band[i] = upper_basic[i]
         else:
-            upper_band.iloc[i] = upper_band.iloc[i - 1]
-
-        if (lower_basic.iloc[i] > lower_band.iloc[i - 1]) or (
-            close.iloc[i - 1] < lower_band.iloc[i - 1]
-        ):
-            lower_band.iloc[i] = lower_basic.iloc[i]
+            upper_band[i] = upper_band[i - 1]
+        # 下轨只能上移（除非昨日收盘已跌破下轨）
+        if lower_basic[i] > lower_band[i - 1] or close[i - 1] < lower_band[i - 1]:
+            lower_band[i] = lower_basic[i]
         else:
-            lower_band.iloc[i] = lower_band.iloc[i - 1]
+            lower_band[i] = lower_band[i - 1]
 
-    supertrend = pd.Series(index=close.index, dtype=float)
-    direction = pd.Series(index=close.index, dtype=int)
-
-    supertrend.iloc[0] = upper_band.iloc[0]
-    direction.iloc[0] = 1
-
-    for i in range(1, len(close)):
-        if supertrend.iloc[i - 1] == upper_band.iloc[i - 1]:
-            if close.iloc[i] <= upper_band.iloc[i]:
-                direction.iloc[i] = -1
-                supertrend.iloc[i] = upper_band.iloc[i]
+        if supertrend[i - 1] == upper_band[i - 1]:
+            # 此前处于下降趋势：收盘突破上轨 → 翻多
+            if close[i] > upper_band[i]:
+                direction[i] = 1
+                supertrend[i] = lower_band[i]
             else:
-                direction.iloc[i] = 1
-                supertrend.iloc[i] = lower_band.iloc[i]
+                direction[i] = -1
+                supertrend[i] = upper_band[i]
         else:
-            if close.iloc[i] >= lower_band.iloc[i]:
-                direction.iloc[i] = 1
-                supertrend.iloc[i] = lower_band.iloc[i]
+            # 此前处于上升趋势：收盘跌破下轨 → 翻空
+            if close[i] < lower_band[i]:
+                direction[i] = -1
+                supertrend[i] = upper_band[i]
             else:
-                direction.iloc[i] = -1
-                supertrend.iloc[i] = upper_band.iloc[i]
+                direction[i] = 1
+                supertrend[i] = lower_band[i]
 
-    return supertrend.iloc[-1], direction.iloc[-1]
+    return supertrend[-1], direction[-1]
 
 
 def calculate_indicators(df):
@@ -327,6 +353,13 @@ def calculate_technical_score(indicators):
     Directional indicators (7): RSI, MACD, EMA, Bollinger, SuperTrend, KDJ, OBV/VWAP
     Non-directional (1): ATR (volatility risk modifier)
 
+    v2.0.3 fix — 中性信号不再被当空头处理：
+    - 旧逻辑：bull_ratio = bullish / total_directional（分母含 neutral），
+      导致 1 bullish + 6 neutral 时 bull_ratio=0.167 → 误判"强烈看空"
+    - 新逻辑：bull_ratio = bullish / (bullish + bearish)，只在有明确方向的
+      指标间计算多空比例；再按方向覆盖率 coverage = (bull+bear)/total
+      向中性分 5.5 收敛，中性越多评分越保守
+
     Returns: (score, signal_info)
     """
     directional = [
@@ -365,22 +398,31 @@ def calculate_technical_score(indicators):
             neutral += 1
             signal_list.append(f"{name.upper()}: neutral")
 
-    if total_directional == 0:
-        score = 5.0
+    votes = bullish + bearish
+    if total_directional == 0 or votes == 0:
+        # 无方向性数据，或全部中性 → 中性分
+        score = 5.5
+        bull_ratio = 0.0
+        bear_ratio = 0.0
+        coverage = 0.0
     else:
-        bull_ratio = bullish / total_directional
-        bear_ratio = bearish / total_directional
+        bull_ratio = bullish / votes
+        bear_ratio = bearish / votes
+        coverage = votes / total_directional
 
         if bull_ratio >= 0.85:
-            score = 9.0 + (bull_ratio - 0.85) * 10
+            raw = 9.0 + (bull_ratio - 0.85) * 10
         elif bull_ratio >= 0.6:
-            score = 7.0 + (bull_ratio - 0.6) * 20
+            raw = 7.0 + (bull_ratio - 0.6) * 20
         elif bull_ratio >= 0.4:
-            score = 5.0 + (bull_ratio - 0.4) * 20
+            raw = 5.0 + (bull_ratio - 0.4) * 20
         elif bull_ratio >= 0.2:
-            score = 3.0 + (bull_ratio - 0.2) * 20
+            raw = 3.0 + (bull_ratio - 0.2) * 20
         else:
-            score = 1.0 + bull_ratio * 10
+            raw = 1.0 + bull_ratio * 10
+
+        # 中性占比高时向 5.5 收敛（coverage=1 时不收敛，与旧刻度一致）
+        score = 5.5 + (raw - 5.5) * coverage
 
     # ATR volatility risk modifier
     atr = indicators.get("atr", {})
@@ -398,13 +440,16 @@ def calculate_technical_score(indicators):
         "bearish_count": bearish,
         "neutral_count": neutral,
         "total_directional": total_directional,
-        "bull_ratio": round(bull_ratio, 2) if total_directional > 0 else 0,
-        "bear_ratio": round(bear_ratio, 2) if total_directional > 0 else 0,
+        "directional_votes": votes,
+        "direction_coverage": round(coverage, 2),
+        "bull_ratio": round(bull_ratio, 2),
+        "bear_ratio": round(bear_ratio, 2),
         "signals": signal_list,
         "score_reasoning": (
-            f"{bullish}/{total_directional} bullish, "
-            f"{bearish}/{total_directional} bearish, "
-            f"{neutral}/{total_directional} neutral"
+            f"{bullish}/{votes} bullish votes, {bearish}/{votes} bearish votes, "
+            f"{neutral} neutral (coverage {coverage:.0%})"
+            if votes > 0
+            else f"no directional votes, {neutral} neutral"
         ),
     }
 
