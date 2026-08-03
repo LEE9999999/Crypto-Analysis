@@ -1,0 +1,122 @@
+{
+  "version": "2.0.3",
+  "description": "子Agent MACHINE块输出契约 — 阶段三各子Agent必须按此契约输出JSON。阶段三出口逐字段校验，字段缺失或字段名漂移时要求子Agent重出，防止阶段四跨维度规则（cross_dimension_rules.json）静默失效。字段名与 rules/cross_dimension_rules.json 的 trigger.fields 一一对应，禁止改名。",
+
+  "common_envelope": {
+    "description": "所有子Agent共有的外层结构",
+    "required_fields": {
+      "dim": "string — 子Agent标识: '3A' | '3B' | '3D' | '3E'",
+      "agent_id": "string — agent3a_security | agent3b_traffic | agent3d_onchain | agent3e_narrative",
+      "dimensions_covered": "array<string> — 覆盖的维度，如 ['D2'] 或 ['D5','D6','D7','D8']",
+      "generated_at": "string — ISO 8601 时间戳",
+      "score": "number — 该Agent主维度评分 0-10，保留1位小数；数据缺失时 ≤5 并注明",
+      "data_confidence": "string — 'high' | 'medium' | 'low'，基于 UDO 置信度分布综合判断",
+      "data_gaps": "array<string> — 无法获取的数据字段列表（🚫 项）",
+      "fallback_records": "array<object> — 降级使用记录: { field, original_source, actual_source, original_confidence, actual_confidence }",
+      "summary": "string — 200字以内的核心结论，供阶段四直接引用"
+    },
+    "constraints": {
+      "max_tokens": 200,
+      "language": "zh-CN",
+      "no_markdown": "MACHINE块为纯JSON，不含markdown包裹或注释"
+    }
+  },
+
+  "per_agent_contracts": {
+
+    "3A_security": {
+      "dimensions_covered": ["D2"],
+      "required_fields": {
+        "score": "number — D2 安全性评分",
+        "sub_scores": {
+          "audit": "number — 合约审计子评分",
+          "team": "number — 团队可信度子评分",
+          "contract": "number — 合约权限子评分",
+          "social": "number — 社媒舆情子评分"
+        },
+        "veto": "boolean — 是否触发一票否决（Rug Pull历史/合约后门/团队欺诈/违法业务）",
+        "veto_reason": "string|null — veto=true 时必填，说明否决原因和证据来源",
+        "risk_flags": "array<string> — 风险标记，枚举值: 'no_audit' | 'contract_risk' | 'anonymous_team' | 'negative_social' | 'funding_unclear' | 'honeypot_suspected'",
+        "code_score": "number — 代码/合约安全分 0-10（R005 规则引用，禁止改名）",
+        "halve": "boolean — 可选，触发减半条件时 true（评分减半后输出）"
+      },
+      "consumed_by_rules": ["R001", "R002", "R005"]
+    },
+
+    "3B_traffic": {
+      "dimensions_covered": ["D3"],
+      "required_fields": {
+        "score": "number — D3 流量热度评分",
+        "rating": "string — 'S' | 'A' | 'B' | 'C' | 'D'，对照 scoring_anchors.json D3",
+        "traffic_data": {
+          "twitter_followers": "number|null",
+          "website_monthly_visits": "number|null",
+          "volume_24h": "number|null — USD",
+          "cmc_rank": "number|null",
+          "engagement_rate": "number|null — 百分比"
+        },
+        "valid_indicator_count": "number — 有效参评指标数；≤1 时禁止评分，score 置 null 并标注终止态"
+      },
+      "consumed_by_rules": ["R003", "R006"]
+    },
+
+    "3D_onchain": {
+      "dimensions_covered": ["D4"],
+      "required_fields": {
+        "score": "number — D4 链上健康度评分",
+        "risk_level": "string — 'low' | 'medium' | 'warning' | 'danger'",
+        "holder_concentration": {
+          "top10_pct": "number — Top10 持仓百分比",
+          "assessment": "string — 对照 D4 锚点的定性判断"
+        },
+        "smart_money_signal": "string — 'positive' | 'neutral' | 'negative'（R004 规则引用，禁止改名）",
+        "contract_risk": "string — 'safe' | 'warning' | 'danger'（R002 规则引用，禁止改名）",
+        "liquidity_depth": "string — 'deep' | 'adequate' | 'shallow' | 'unknown'",
+        "trading_naturalness": "string — 'natural' | 'suspicious' | 'wash_trading_suspected' | 'unknown'"
+      },
+      "consumed_by_rules": ["R002", "R004", "R006"]
+    },
+
+    "3E_narrative": {
+      "dimensions_covered": ["D5", "D6", "D7", "D8"],
+      "required_fields": {
+        "score": "number — 3E 综合分（各子维度加权前的参考分，阶段四以各子维度分为准）",
+        "e1_narrative": {
+          "score": "number — D5 叙事力评分",
+          "crypto_native_score": "number",
+          "web2_propagation_score": "number",
+          "narrative_stage": "string — 'rising' | 'peak' | 'stable' | 'declining'"
+        },
+        "e2_capital": {
+          "score": "number — D6 资金力评分",
+          "capital_inflow_6d": "object — 6维资金流入信号: { d1_exchange_net_flow, d2_volume_trend, d3_price_vs_benchmark, d4_stablecoin_ratio, d5_open_interest, d6_smart_money_net }，每项 'strong_positive'|'positive'|'neutral'|'negative'|'strong_negative'|'unavailable'",
+          "market_maker_tier": "string — 'Tier1'|'Tier2'|'Tier3'|'none'|'unknown'，对照 influence_tiers.json"
+        },
+        "e3_market": {
+          "score": "number — D7 市场表现评分（含接链/交易所上线质量）",
+          "product_stage": "string — 'mature'|'launched'|'early'|'mvp'|'concept'|'none'",
+          "exchange_listing": {
+            "tier": "string — 'tier_1'|'tier_2'|'tier_3'|'dex_only'，对照 scoring_anchors.json exchange_listing_tiers",
+            "exchanges": "array<string> — 已上线交易所列表"
+          }
+        },
+        "e4_technical": {
+          "score": "number — D8 技术面评分（与 technical_score 一致）",
+          "technical_score": "number — scripts/technical_analysis.py 输出值",
+          "indicator_signals": "object — 8个Tier 1指标的多空信号: { rsi, macd, ema, bollinger, supertrend, kdj, atr, obv_vwap }"
+        }
+      },
+      "consumed_by_rules": ["R003", "R004", "R006", "R007", "R008"],
+      "pre_tge_note": "未TGE项目：D6 用 scale_pre_tge 锚点，D7/D8 标注 'pre_tge' 不评分（score 置 null）"
+    }
+  },
+
+  "validation_rules": {
+    "rule_1": "common_envelope 全部 required_fields 必须存在，缺失 → 子Agent重出",
+    "rule_2": "per_agent_contracts 中标注'禁止改名'的字段名必须与契约完全一致（跨维度规则按字段名取值）",
+    "rule_3": "score 为 null 时必须同时给出 data_gaps 说明原因（pre_tge / 数据缺失 / 终止态）",
+    "rule_4": "枚举字段（smart_money_signal / contract_risk / risk_level 等）只可使用契约列出的取值",
+    "rule_5": "评分保留1位小数；数据缺失维度 score ≤ 5 且在 summary 中注明",
+    "rule_6": "校验不通过时，主Agent将原始输出+缺失字段清单返回子Agent，要求补齐后重出"
+  }
+}
