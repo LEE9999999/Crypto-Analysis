@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "description": "信息来源可信度评分表 — 用于标注每个数据点的可信度等级，指导交叉验证策略。v1.1增加替代源链和Twitter获取方案",
+  "version": "2.0.3",
+  "description": "信息来源可信度评分表 — 用于标注每个数据点的可信度等级，指导交叉验证策略。v2.0.3统一版本号；T4交易所用途更新为D7（接链已并入D7）",
 
   "tiers": {
     "T1_official": {
@@ -74,7 +74,7 @@
         "Bitget",
         "Gate.io"
       ],
-      "usage_notes": "交易所上线信息直接用于D4接链评估"
+      "usage_notes": "交易所上线信息用于 D7 市场表现评估（v2.0.3 起接链分析已并入 D7，对照 scoring_anchors.json 的 exchange_listing_tiers）"
     },
 
     "T5_onchain": {
